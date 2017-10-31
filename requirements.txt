@@ -1,0 +1,3 @@
+git+git://github.com/gatagat/lap.git
+numpy
+pandas
