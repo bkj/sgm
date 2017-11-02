@@ -48,7 +48,8 @@ def parse_args():
 
 def load_matrix(path):
     mat = pd.read_csv(path, index_col=0)
-    return torch.Tensor(np.array(mat))
+    mat = np.array(mat, dtype='float64')
+    return torch.Tensor(mat)
 
 def square_pad(x, n):
     row_pad = n - x.size(0)
