@@ -2,4 +2,5 @@ cython
 tqdm
 numpy
 pandas
+matplotlib
 git+git://github.com/gatagat/lap.git
