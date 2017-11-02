@@ -59,10 +59,10 @@ def square_pad(x, n):
     assert col_pad >= 0
     
     if row_pad > 0:
-        x = torch.cat([x, torch.zeros(n - x.size(0), x.size(1))], dim=0)
+        x = torch.cat([x, torch.zeros(row_pad, x.size(1))], dim=0)
     
     if col_pad > 0:
-        x = torch.cat([x, torch.zeros(x.size(0), n - x.size(1))], dim=1)
+        x = torch.cat([x, torch.zeros(x.size(0), col_pad)], dim=1)
     
     return x
 
@@ -99,7 +99,7 @@ assert m == 0, "m != 0 -- not implemented yet"
 # --
 # Prep
 
-max_nodes  = np.max([A.size(0), B.size(0)])
+max_nodes  = max([A.size(0), B.size(0)])
 n = max_nodes - m
 
 A[A == 0] = -1
@@ -163,7 +163,7 @@ for i in tqdm(range(patience)):
     else:
         # !! Escape divide by zero error -- see note at top
         if (c - d + e == 0):
-            alpha = np.inf
+            alpha = float('inf')
         else:
             alpha = -(d - 2 * e + u - v) / (2 * (c - d + e))
     
