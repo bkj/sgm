@@ -3,4 +3,5 @@ tqdm
 numpy
 pandas
 matplotlib
+seaborn
 git+git://github.com/gatagat/lap.git
