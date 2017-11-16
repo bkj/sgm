@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-    sgm.py
+    sgm-2.py
     
     Notes:
     
@@ -41,9 +41,9 @@ import seaborn as sns
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--A-path', type=str, default='./data/A1.ordered')
-    parser.add_argument('--B-path', type=str, default='./data/A2.ordered')
-    parser.add_argument('--P-path', type=str, default='./data/S')
+    parser.add_argument('--A-path', type=str, default='./data/data.sgm/A1.ordered')
+    parser.add_argument('--B-path', type=str, default='./data/data.sgm/A2.ordered')
+    parser.add_argument('--P-path', type=str, default='./data/data.sgm/S')
     parser.add_argument('--no-double', action="store_true")
     
     parser.add_argument('--m', type=int, default=0)
@@ -60,7 +60,6 @@ def load_matrix(path):
     mat = torch.Tensor(mat)
     assert mat.size(0) == mat.size(1), "%s must be square" % path
     return mat
-
 
 def square_pad(x, n):
     row_pad = n - x.size(0)
@@ -101,6 +100,7 @@ P_orig = P.clone()
 # --
 # Prep
 
+n_seeds = (P.diag() == 1).sum()
 max_nodes  = max([A.size(0), B.size(0)])
 n = max_nodes - args.m
 
@@ -112,10 +112,6 @@ B = square_pad(B, max_nodes)
 
 if args.m != 0:
     raise NotImplemented
-    # A12 <- rbind(A[1:m, (m+1):(m+n)])
-    # A21 <- cbind(A[(m+1):(m+n), 1:m])
-    # B12 <- rbind(B[1:m, (m+1):(m+n)])
-    # B21 <- cbind(B[(m+1):(m+n), 1:m])
 else:
     A12 = torch.zeros(n, n)
     A21 = torch.zeros(n, n)
@@ -123,11 +119,8 @@ else:
     B21 = torch.zeros(n, n)
 
 if n == 1:
+    # Need to make sure we're not dropping
     raise NotImplemented
-#     A12 <- t(A12)
-#     A21 <- t(A21)
-#     B12 <- t(B12)
-#     B21 <- t(B21)
 
 # --
 # Run
@@ -135,27 +128,28 @@ if n == 1:
 A22 = A[args.m:(args.m+n), args.m:(args.m+n)]
 B22 = B[args.m:(args.m+n), args.m:(args.m+n)]
 
-x = torch.mm(A21, B21.t())
-y = torch.mm(A12.t(), B12)
+if args.m != 0:
+    x = torch.mm(A21, B21.t())
+    y = torch.mm(A12.t(), B12)
+else:
+    x = torch.zeros(n, n)
+    y = torch.zeros(n, n)
 
 eye = torch.eye(n)
 
 start_time = time()
 for i in range(args.patience):
-    print('mult1')
      # !! Order of these might change efficiency
     z = torch.mm(torch.mm(A22, P), B22.t())
     w = torch.mm(torch.mm(A22.t(), P), B22)
     
     # Linear Assignment Problem
-    print('lap')
     grad = x + y + z + w
     cost = (grad + grad.abs().max()).numpy()
     _, ind, _ = lapjv(cost.max() - cost)
     ind = torch.LongTensor(ind.astype(int))
     
     # Matrix multiplications
-    print('mult2')
     T   = eye[ind]
     wt  = torch.mm(torch.mm(A22.t(), T), B22)
     P_t, T_t = P.t(), T.t()
@@ -195,9 +189,14 @@ P_final = eye[torch.LongTensor(corr.astype(int))]
 p = P_final[:B_orig.size(0),:B_orig.size(1)]
 B_perm = torch.mm(torch.mm(p, B_orig), p.t())
 
-n_seeds = 145 # hardcoded for now
 assert (A_orig[:n_seeds,:n_seeds] == B_perm[:n_seeds,:n_seeds]).all()
 print("Ran successfully: A[:n_seeds,:n_seeds] = (p %*% B %*% p.T)[:n_seeds,:n_seeds]")
+
+# --
+# Save results
+
+corr = np.vstack([np.arange(corr.shape[0]), corr]).T
+np.savetxt('./corr-py.txt', corr, fmt='%d')
 
 # --
 # Visualization
