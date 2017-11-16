@@ -24,6 +24,7 @@ If you want to run this in the official `pytorch` docker:
     `sudo docker run -v $(pwd)/data:/data -it pytorch/pytorch /bin/bash`
      
   - Then do:
+  
     ```
     git clone https://github.com/bkj/sgm
     cd sgm
@@ -34,4 +35,6 @@ If you want to run this in the official `pytorch` docker:
         --A-path /data/A1.ordered \
         --B-path /data/A2.ordered \
         --P-path /data/S
+    
     ```
+
