@@ -3,7 +3,10 @@
 """
     sgm-m0.py
     
-    Special case for special case where `m == 0`
+    Notes:
+        Same caveats apply as in sgm.py
+        
+        However, this is tuned for the case of `m = 0`
 """
 
 from __future__ import division, print_function
@@ -35,16 +38,21 @@ def parse_args():
     parser.add_argument('--A-path', type=str, default='./data/data.sgm/A1.ordered')
     parser.add_argument('--B-path', type=str, default='./data/data.sgm/A2.ordered')
     parser.add_argument('--P-path', type=str, default='./data/data.sgm/S')
+    parser.add_argument('--outpath', type=str, default='./corr.txt')
+    
     parser.add_argument('--no-double', action="store_true")
     
     parser.add_argument('--m', type=int, default=0)
     parser.add_argument('--patience', type=int, default=20)
     parser.add_argument('--tolerance', type=int, default=1)
-    parser.add_argument('--cuda', action='store_true')
+    
+    parser.add_argument('--plot', action="store_true")
+    parser.add_argument('--cuda', action="store_true")
     
     args = parser.parse_args()
     assert args.m == 0, "m != 0 -- not implemented yet"
     return args
+
 
 def load_matrix(path):
     mat = pd.read_csv(path, index_col=0)
@@ -52,6 +60,7 @@ def load_matrix(path):
     mat = torch.Tensor(mat)
     assert mat.size(0) == mat.size(1), "%s must be square" % path
     return mat
+
 
 def square_pad(x, n):
     row_pad = n - x.size(0)
@@ -72,10 +81,8 @@ def square_pad(x, n):
 args = parse_args()
 
 if args.no_double:
-    print("torch.set_default_tensor_type('torch.FloatTensor')", file=sys.stderr)
     torch.set_default_tensor_type('torch.FloatTensor')
 else:
-    print("torch.set_default_tensor_type('torch.DoubleTensor')", file=sys.stderr)
     torch.set_default_tensor_type('torch.DoubleTensor')
 
 # --
@@ -91,8 +98,7 @@ A_orig = A.clone()
 B_orig = B.clone()
 P_orig = P.clone()
 
-print('IO time=%f' % (time() - t))
-
+print("io_time\t%f" % (time() - t))
 
 # --
 # Prep
@@ -108,20 +114,19 @@ B[B == 0] = -1
 
 A = square_pad(A, max_nodes)
 B = square_pad(B, max_nodes)
-
 eye = torch.eye(n)
 
 if args.cuda:
     A, B, P, eye = A.cuda(), B.cuda(), P.cuda(), eye.cuda()
 
-print('prep time=%f' % (time() - t))
+print("prep_time\t%f" % (time() - t))
 
 # --
 # Run
 
 t = time()
 
-for i in range(args.patience):
+for i in tqdm(range(args.patience)):
     z = torch.mm(torch.mm(A, P), B.t())
     w = torch.mm(torch.mm(A.t(), P), B)
     
@@ -136,10 +141,9 @@ for i in range(args.patience):
     # Matrix multiplications
     T   = eye[ind]
     wt  = torch.mm(torch.mm(A.t(), T), B)
-    P_t, T_t = P.t(), T.t()
-    c   = (w * P).sum()
-    d   = (wt * P).sum() + (w * T).sum()
-    e   = (wt * T).sum()
+    c   = torch.sum(w * P)
+    d   = torch.sum(wt * P) + torch.sum(w * T)
+    e   = torch.sum(wt * T)
     
     if (c - d + e == 0) and (d - 2 * e == 0):
         alpha = 0
@@ -161,39 +165,40 @@ for i in range(args.patience):
         print("breaking at iter=%d" % i, file=sys.stderr)
         break
 
-
-print('run time=%f' % (time() - t))
-
-
 final_cost = (P.max() - P).cpu().numpy()
 _, corr, _ = lapjv(final_cost)
 P_final = eye.cpu()[torch.LongTensor(corr.astype(int))]
+
+print("run_time\t%f" % (time() - t))
+
+# --
+# Save results
+
+print('sgm-m0.py: saving', file=sys.stderr)
 
 p = P_final[:B_orig.size(0),:B_orig.size(1)]
 B_perm = torch.mm(torch.mm(p, B_orig), p.t())
 
 assert (A_orig[:n_seeds,:n_seeds] == B_perm[:n_seeds,:n_seeds]).all()
-print("Ran successfully: A[:n_seeds,:n_seeds] = (p %*% B %*% p.T)[:n_seeds,:n_seeds]")
-
-# --
-# Save results
+print("Ran successfully: A[:n_seeds,:n_seeds] = (p %*% B %*% p.T)[:n_seeds,:n_seeds]", file=sys.stderr)
 
 corr = np.vstack([np.arange(corr.shape[0]), corr]).T
-np.savetxt('./corr-py.txt', corr, fmt='%d')
+np.savetxt(args.outpath, corr, fmt='%d')
 
 # --
 # Visualization
 
-print('plotting...')
-
-_ = sns.heatmap(A_orig[:n_seeds, :n_seeds].numpy(),
-    xticklabels=False, yticklabels=False, cbar=False, square=True)
-_ = plt.title('A')
-plt.savefig('A.png')
-plt.close()
-
-_ = sns.heatmap(B_perm[:n_seeds, :n_seeds].numpy(),
-    xticklabels=False, yticklabels=False, cbar=False, square=True)
-_ = plt.title('permuted B')
-plt.savefig('B_perm.png')
-plt.close()
+if args.plot:
+    print('sgm-m0.py: plotting', file=sys.stderr)
+    
+    _ = sns.heatmap(A_orig[:n_seeds, :n_seeds].numpy(),
+        xticklabels=False, yticklabels=False, cbar=False, square=True)
+    _ = plt.title('A')
+    plt.savefig('A.png')
+    plt.close()
+    
+    _ = sns.heatmap(B_perm[:n_seeds, :n_seeds].numpy(),
+        xticklabels=False, yticklabels=False, cbar=False, square=True)
+    _ = plt.title('permuted B')
+    plt.savefig('B_perm.png')
+    plt.close()
