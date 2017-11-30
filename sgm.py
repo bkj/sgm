@@ -41,9 +41,9 @@ import seaborn as sns
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--A-path', type=str, default='./data/data.sgm/A1.ordered')
-    parser.add_argument('--B-path', type=str, default='./data/data.sgm/A2.ordered')
-    parser.add_argument('--P-path', type=str, default='./data/data.sgm/S')
+    parser.add_argument('--A-path', type=str, default='./data/A1.ordered')
+    parser.add_argument('--B-path', type=str, default='./data/A2.ordered')
+    parser.add_argument('--P-path', type=str, default='./data/S')
     parser.add_argument('--outpath', type=str, default='./corr.txt')
     
     parser.add_argument('--no-double', action="store_true")
@@ -200,7 +200,7 @@ B_perm = torch.mm(torch.mm(p, B_orig), p.t())
 assert (A_orig[:n_seeds,:n_seeds] == B_perm[:n_seeds,:n_seeds]).all()
 print("Ran successfully: A[:n_seeds,:n_seeds] = (p %*% B %*% p.T)[:n_seeds,:n_seeds]", file=sys.stderr)
 
-corr = np.vstack([np.arange(corr.shape[0]), corr]).T
+corr = np.vstack([np.arange(corr.shape[0]), corr]).T + 1
 np.savetxt(args.outpath, corr, fmt='%d')
 
 # --
