@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 
 """
-    sgm-m0.py
-    
-    Notes:
-        Same caveats apply as in sgm.py
-        
-        However, this is tuned for the case of `m = 0`
+    sgm.py
 """
 
 from __future__ import division, print_function
@@ -18,27 +13,21 @@ import sys
 import argparse
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from lap import lapjv
 
 import torch
 from time import time
 from torch.nn.functional import pad
 
-import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt
-import seaborn as sns
-
 # --
 # Helpers
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--A-path', type=str, default='./data/data.sgm/A1.ordered')
-    parser.add_argument('--B-path', type=str, default='./data/data.sgm/A2.ordered')
-    parser.add_argument('--P-path', type=str, default='./data/data.sgm/S')
-    parser.add_argument('--outpath', type=str, default='./corr.txt')
+    parser.add_argument('--A-path', type=str, default='../_results/r_49/A1.ordered.csv')
+    parser.add_argument('--B-path', type=str, default='../_results/r_49/A2.ordered.csv')
+    parser.add_argument('--P-path', type=str, default='../_results/r_49/P_start.csv')
+    parser.add_argument('--outpath', type=str, default='./_simple_corr.txt')
     
     parser.add_argument('--no-double', action="store_true")
     
@@ -55,7 +44,7 @@ def parse_args():
 
 
 def load_matrix(path):
-    mat = pd.read_csv(path, index_col=0)
+    mat = pd.read_csv(path)
     mat = np.array(mat, dtype='float64')
     mat = torch.Tensor(mat)
     assert mat.size(0) == mat.size(1), "%s must be square" % path
@@ -88,8 +77,6 @@ else:
 # --
 # IO
 
-t = time()
-
 A = load_matrix(args.A_path)
 B = load_matrix(args.B_path)
 P = load_matrix(args.P_path)
@@ -98,12 +85,8 @@ A_orig = A.clone()
 B_orig = B.clone()
 P_orig = P.clone()
 
-print("io_time\t%f" % (time() - t))
-
 # --
 # Prep
-
-t = time()
 
 n_seeds = (P.diag() == 1).sum()
 max_nodes  = max([A.size(0), B.size(0)])
@@ -119,14 +102,14 @@ eye = torch.eye(n)
 if args.cuda:
     A, B, P, eye = A.cuda(), B.cuda(), P.cuda(), eye.cuda()
 
-print("prep_time\t%f" % (time() - t))
-
 # --
 # Run
 
 t = time()
 
-for i in tqdm(range(args.patience)):
+for i in range(args.patience):
+    print('start iteration %d (%f seconds)' % (i, time() - t))
+    
     z = torch.mm(torch.mm(A, P), B.t())
     w = torch.mm(torch.mm(A.t(), P), B)
     
@@ -169,27 +152,36 @@ final_cost = (P.max() - P).cpu().numpy()
 _, corr, _ = lapjv(final_cost)
 P_final = eye.cpu()[torch.LongTensor(corr.astype(int))]
 
-print("run_time\t%f" % (time() - t))
-
 # --
 # Save results
-
-print('sgm-m0.py: saving', file=sys.stderr)
 
 p = P_final[:B_orig.size(0),:B_orig.size(1)]
 B_perm = torch.mm(torch.mm(p, B_orig), p.t())
 
-assert (A_orig[:n_seeds,:n_seeds] == B_perm[:n_seeds,:n_seeds]).all()
-print("Ran successfully: A[:n_seeds,:n_seeds] = (p %*% B %*% p.T)[:n_seeds,:n_seeds]", file=sys.stderr)
 
-corr = np.vstack([np.arange(corr.shape[0]), corr]).T
+n = B_orig.shape[0]
+f_orig = np.sqrt(((A_orig[:n,:n] - B_orig[:n,:n]) ** 2).sum())
+print("F-norm of difference between unpermuted matrices -> %f" % f_orig, file=sys.stderr)
+
+f_seed = np.sqrt(((A_orig[:n_seeds,:n_seeds] - B_perm[:n_seeds,:n_seeds]) ** 2).sum())
+print("F-norm of difference between seed sets in permuted matrices -> %f" % f_seed, file=sys.stderr)
+
+f_perm = np.sqrt(((A_orig[:n,:n] - B_perm[:n,:n]) ** 2).sum())
+print("F-norm of difference between permuted matrices -> %f" % f_perm, file=sys.stderr)
+
+corr = np.vstack([np.arange(corr.shape[0]), corr]).T + 1 # Increment by 1 to match R output
 np.savetxt(args.outpath, corr, fmt='%d')
 
 # --
 # Visualization
 
 if args.plot:
-    print('sgm-m0.py: plotting', file=sys.stderr)
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+    import seaborn as sns
+    
+    print('sgm.py: plotting', file=sys.stderr)
     
     _ = sns.heatmap(A_orig[:n_seeds, :n_seeds].numpy(),
         xticklabels=False, yticklabels=False, cbar=False, square=True)

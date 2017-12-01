@@ -20,4 +20,4 @@ time python sgm.py --cuda
 # --
 # RUN SGM optimized for special case of `m=0`
 
-time python sgm-0.py
+time python sgm0.py
