@@ -159,7 +159,7 @@ p = P_final[:B_orig.size(0),:B_orig.size(1)]
 B_perm = torch.mm(torch.mm(p, B_orig), p.t())
 
 
-n = B_orig.shape[0]
+n = np.min([A_orig.shape[0], B_orig.shape[0]])
 f_orig = np.sqrt(((A_orig[:n,:n] - B_orig[:n,:n]) ** 2).sum())
 print("F-norm of difference between unpermuted matrices -> %f" % f_orig, file=sys.stderr)
 
