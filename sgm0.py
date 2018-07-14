@@ -105,10 +105,10 @@ if args.cuda:
 # --
 # Run
 
-t = time()
+
 
 for i in range(args.patience):
-    print('start iteration %d (%f seconds)' % (i, time() - t))
+    t = time()
     
     z = torch.mm(torch.mm(A, P), B.t())
     w = torch.mm(torch.mm(A.t(), P), B)
@@ -116,7 +116,9 @@ for i in range(args.patience):
     # Linear Assignment Problem
     grad = z + w
     cost = (grad + grad.abs().max()).cpu().numpy()
+    t2 = time()
     _, ind, _ = lapjv(cost.max() - cost)
+    print('lap_time %f' % (time() - t2))
     ind = torch.LongTensor(ind.astype(int))
     if args.cuda:
         ind = ind.cuda()
@@ -145,8 +147,13 @@ for i in range(args.patience):
     elif f1 < 0:
         P = T
     else:
+        print('done iteration %d (%f seconds)' % (i, time() - t))
         print("breaking at iter=%d" % i, file=sys.stderr)
         break
+    
+    print('done iteration %d (%f seconds)' % (i, time() - t))
+
+print('total', time() - t)
 
 final_cost = (P.max() - P).cpu().numpy()
 _, corr, _ = lapjv(final_cost)
@@ -163,8 +170,8 @@ n = np.min([A_orig.shape[0], B_orig.shape[0]])
 f_orig = np.sqrt(((A_orig[:n,:n] - B_orig[:n,:n]) ** 2).sum())
 print("F-norm of difference between unpermuted matrices -> %f" % f_orig, file=sys.stderr)
 
-f_seed = np.sqrt(((A_orig[:n_seeds,:n_seeds] - B_perm[:n_seeds,:n_seeds]) ** 2).sum())
-print("F-norm of difference between seed sets in permuted matrices -> %f" % f_seed, file=sys.stderr)
+# f_seed = np.sqrt(((A_orig[:n_seeds,:n_seeds] - B_perm[:n_seeds,:n_seeds]) ** 2).sum())
+# print("F-norm of difference between seed sets in permuted matrices -> %f" % f_seed, file=sys.stderr)
 
 f_perm = np.sqrt(((A_orig[:n,:n] - B_perm[:n,:n]) ** 2).sum())
 print("F-norm of difference between permuted matrices -> %f" % f_perm, file=sys.stderr)

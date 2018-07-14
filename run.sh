@@ -2,22 +2,16 @@
 
 # run.sh
 
-# --
-# Get data
+./run-one.sh 500
+./run-one.sh 1000
+./run-one.sh 1500
+./run-one.sh 2000
+./run-one.sh 2500
 
-tar -xzvf data.tar.gz
+./run-one.sh 3000
+./run-one.sh 3500
+./run-one.sh 4000
 
-# --
-# Run SGM
+./run-one.sh 4500
 
-time python sgm.py
-
-# --
-# Run SGM w/ cuda
-
-time python sgm.py --cuda
-
-# --
-# RUN SGM optimized for special case of `m=0`
-
-time python sgm0.py
+./run-one.sh 5000
