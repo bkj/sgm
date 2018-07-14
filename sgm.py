@@ -1,7 +1,20 @@
+#!/usr/bin/env python
+
+"""
+    sgm.py
+    
+    Agnostic SGM implementation
+"""
+
+import json
 from time import time
 
-def sgm(A, P, B, compute_grad, solve_lap, num_iters, tolerance):
+def sgm(A, P, B, eye, compute_grad, solve_lap, num_iters, tolerance, prod_sum=None, verbose=True):
+    if prod_sum is None:
+        prod_sum = _prod_sum
+    
     grad = compute_grad(A, P, B)
+    
     
     stop = False
     for i in range(num_iters):
@@ -12,9 +25,10 @@ def sgm(A, P, B, compute_grad, solve_lap, num_iters, tolerance):
         lap_time = time() - lap_start_time
         
         grad_t = compute_grad(A, T, B)
-        c = (grad * P).sum()
-        d = (grad_t * P).sum() + (grad * T).sum()
-        e = (grad_t * T).sum()
+        
+        c = prod_sum(grad, P)
+        d = prod_sum(grad_t, P) + prod_sum(grad, T)
+        e = prod_sum(grad_t, T)
         
         if (c - d + e == 0) and (d - 2 * e == 0):
             alpha = 0
@@ -36,15 +50,13 @@ def sgm(A, P, B, compute_grad, solve_lap, num_iters, tolerance):
         else:
             stop = True
         
-        iter_time = time() - iter_start_time
-        print(json.dumps({
-            "iter"          : i,
-            "lap_time"      : lap_time,
-            "nolap_time"    : iter_time - lap_time,
-            
-            "max_nodes" : int(max_nodes),
-            "n_seeds"   : int(n_seeds),
-        }))
+        if verbose:
+            iter_time = time() - iter_start_time
+            print(json.dumps({
+                "iter"          : i,
+                "lap_time"      : lap_time,
+                "nolap_time"    : iter_time - lap_time,
+            }))
         
         if stop:
             break

@@ -14,20 +14,17 @@ import json
 import argparse
 import numpy as np
 import pandas as pd
+from time import time
 from functools import partial
 
 import torch
-from time import time
 from torch.nn.functional import pad
 
 from lap import lapjv
-
 sys.path.append('auction-lap')
 from auction_lap import auction_lap
 
-sys.path.append('sgm')
 from sgm import sgm
-
 
 # --
 # Helpers
@@ -48,7 +45,7 @@ def parse_args():
     parser.add_argument('--sparse', action="store_true")
     
     # LAP params
-    parser.add_argument('--mode', type=str, required=True)
+    parser.add_argument('--mode', type=str, default='exact')
     parser.add_argument('--eps', type=float, default=100)
     
     parser.add_argument('--plot', action="store_true")
@@ -103,6 +100,9 @@ def compute_grad(A, P, B, sparse=False):
         AP = torch.mm(A, P)
         return 4 * torch.mm(AP, B) - 2 * AP.sum(dim=-1).view(-1, 1) - 2 * B.sum(dim=0).view(1, -1) + A.size(0)
 
+def prod_sum(x, y):
+    return (x * y).sum()
+
 
 args = parse_args()
 
@@ -118,17 +118,21 @@ A = load_matrix(args.A_path)
 B = load_matrix(args.B_path)
 P = load_matrix(args.P_path)
 
-A_orig = A.clone()
-B_orig = B.clone()
-
 if not args.sparse:
+    A_orig, B_orig = A.clone(), B.clone()
     A[A == 0] = -1
     B[B == 0] = -1
+else:
+    A_orig, B_orig = A, B
 
 # --
 # Prep
 
 n_seeds = (P.diag() == 1).sum()
+# >>
+# Start at vertex of polytope corresponding to seed
+# P[n_seeds:, n_seeds:] = 0
+# <<
 max_nodes = max([A.size(0), B.size(0)])
 min_nodes = min([A.size(0), B.size(0)])
 
@@ -146,11 +150,13 @@ start_time = time()
 P_out = sgm(
     A=A,
     P=P,
-    B=B, 
-    compute_grad=compute_grad,
-    solve_lap=partial(solve_lap, mode=args.mode, cuda=args.cuda, eps=args.eps),
+    B=B,
+    eye=eye,
+    compute_grad=partial(compute_grad, sparse=args.sparse),
+    solve_lap=partial(solve_lap, mode=args.mode, cuda=args.cuda, eps=1),
+    prod_sum=prod_sum,
     num_iters=args.num_iters,
-    tolerance=args.tolerance
+    tolerance=args.tolerance,
 )
 total_time = time() - start_time
 
@@ -159,6 +165,7 @@ total_time = time() - start_time
 
 P_out_small = P_out[:min_nodes,:min_nodes]
 P_out_small = P_out_small.cpu()
+
 B_perm = torch.mm(torch.mm(P_out_small, B_orig), P_out_small.t())
 
 f_orig = np.sqrt(((A_orig[:min_nodes,:min_nodes] - B_orig[:min_nodes,:min_nodes]) ** 2).sum())
