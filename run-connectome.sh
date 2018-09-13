@@ -10,7 +10,8 @@ for dataset in $(ls _data/connectome); do
 done
 
 
-INPATH="_data/connectome/DS00833/sparse"
+# INPATH="_data/connectome/DS03231/sparse"
+INPATH="_data/connectome/DS06481/sparse"
 time python main-scipy.py \
     --A-path $INPATH/B.edgelist \
     --B-path $INPATH/A.edgelist \
