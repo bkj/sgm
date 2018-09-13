@@ -59,20 +59,17 @@ def parse_args():
 def load_matrix(path, shape=None):
     mat = pd.read_csv(path).values
     if mat.shape[1] == 2:
-        raise NotImplemented
-        # unodes = np.unique(mat)
-        # lookup = dict(zip(unodes, range(len(unodes))))
-        # inds = [lookup[m] for m in mat[:,0]], [lookup[m] for m in mat[:,1]]
-        # data = np.ones(len(inds[0]))
+        rows, cols = mat.T
+        data = np.ones(rows.shape[0])
     else:
-        mat  = mat.astype(np.float64)
-        inds = np.where(mat)
+        mat = mat.astype(np.float64)
+        rows, cols = np.where(mat)
         data = mat[inds]
     
     if shape is None:
-        shape = mat.shape[0]
+        shape = max(rows.max(), cols.max()) + 1
     
-    mat = sparse.csr_matrix((data, inds), shape=(shape, shape))
+    mat = sparse.csr_matrix((data, (rows, cols)), shape=(shape, shape))
     mat = ((mat + mat.T) > 0).astype(np.float64) # symmetrize
     
     assert mat.shape[0] == mat.shape[1], "%s must be square" % path
@@ -106,6 +103,9 @@ args = parse_args()
 
 # --
 # IO
+
+args.A_path = '_data/synthetic/sparse/0.05/5000/A.edgelist'
+args.B_path = '_data/synthetic/sparse/0.05/5000/B.edgelist'
 
 A = load_matrix(args.A_path)
 B = load_matrix(args.B_path, shape=A.shape[0])

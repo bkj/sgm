@@ -6,6 +6,7 @@
     Agnostic SGM implementation
 """
 
+import sys
 import json
 from time import time
 
@@ -14,7 +15,6 @@ def sgm(A, P, B, eye, compute_grad, solve_lap, num_iters, tolerance, prod_sum=No
         prod_sum = _prod_sum
     
     grad = compute_grad(A, P, B)
-    
     
     stop = False
     for i in range(num_iters):
