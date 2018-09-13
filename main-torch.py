@@ -22,7 +22,7 @@ from torch.nn.functional import pad
 
 from lap import lapjv
 sys.path.append('auction-lap')
-from auction_lap import auction_lap
+from auction_lap.auction_lap import auction_lap
 
 from sgm import sgm
 
@@ -80,7 +80,8 @@ def square_pad(x, n):
     
     return x
 
-def solve_lap(cost, mode, cuda, eps, eye):
+def solve_lap(cost_sparse, cost_offset, mode, cuda, eps, eye):
+    cost = cost_sparse + cost_offset
     cost = cost - cost.min() # Make >= 0
     if mode == 'exact':
         cost = cost.cpu().numpy()
@@ -97,8 +98,10 @@ def compute_grad(A, P, B, sparse=False):
     if not sparse:
         return torch.mm(torch.mm(A, P), B)
     else:
-        AP = torch.mm(A, P)
-        return 4 * torch.mm(AP, B) - 2 * AP.sum(dim=-1).view(-1, 1) - 2 * B.sum(dim=0).view(1, -1) + A.size(0)
+        AP          = torch.mm(A, P)
+        grad        = 4 * torch.mm(AP, B)
+        grad_offset = - 2 * AP.sum(dim=-1).view(-1, 1) - 2 * B.sum(dim=0).view(1, -1) + A.size(0)
+        return grad, grad_offset
 
 def prod_sum(x, y):
     return (x * y).sum()
@@ -153,7 +156,7 @@ P_out = sgm(
     B=B,
     eye=eye,
     compute_grad=partial(compute_grad, sparse=args.sparse),
-    solve_lap=partial(solve_lap, mode=args.mode, cuda=args.cuda, eps=1),
+    solve_lap=partial(solve_lap, mode=args.mode, cuda=args.cuda, eps=args.eps),
     prod_sum=prod_sum,
     num_iters=args.num_iters,
     tolerance=args.tolerance,

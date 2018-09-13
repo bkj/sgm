@@ -82,7 +82,9 @@ def load_matrix(path, shape=None):
     return mat
 
 torch.set_default_tensor_type('torch.DoubleTensor')
-def solve_lap(cost, mode, cuda, eps, eye):
+def solve_lap(cost_sparse, cost_offset, mode, cuda, eps, eye):
+    cost = cost_sparse + cost_offset
+    
     if isinstance(cost, sparse.csr_matrix):
         cost = cost.toarray()
     
@@ -98,19 +100,14 @@ def solve_lap(cost, mode, cuda, eps, eye):
     return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
 
 def compute_grad(A, P, B, sparse=False):
-    AP = A.dot(P)
-    # print('density(AP)  =', AP.nnz / np.prod(AP.shape), file=sys.stderr)
+    AP  = A.dot(P)
     APB = AP.dot(B)
-    # print('density(APB) =', APB.nnz / np.prod(APB.shape), file=sys.stderr)
-    out = 4 * APB - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
     
-    # print(AP.sum(axis=1))
-    # print(B.sum(axis=1))
-    # print(out)
-    # raise Exception
+    sim          = 4 * APB
+    row_offsets  = 2 * AP.sum(axis=1)
+    col_offsets  = 2 * B.sum(axis=0)
     
-    out = np.asarray(out)
-    return out
+    return sim, - (row_offsets + col_offsets)
 
 
 args = parse_args()
