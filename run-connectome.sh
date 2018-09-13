@@ -10,16 +10,16 @@ for dataset in $(ls _data/connectome); do
 done
 
 
-INPATH="_data/connectome/DS06481/sparse"
+INPATH="_data/connectome/DS00833/sparse"
 time python main-scipy.py \
-    --A-path $INPATH/A2.ordered.edges \
-    --B-path $INPATH/A1.ordered.edges \
-    --P-path $INPATH/P_start.edges \
+    --A-path $INPATH/B.edgelist \
+    --B-path $INPATH/A.edgelist \
+    --P-path $INPATH/P.edgelist \
     --mode exact \
     --symmetric
 
 
-INPATH="_data/connectome/DS06481/dense"
+INPATH="_data/connectome/DS00833/dense"
 time python main-scipy.py \
     --A-path $INPATH/A2.ordered.edges \
     --B-path $INPATH/A1.ordered.edges \

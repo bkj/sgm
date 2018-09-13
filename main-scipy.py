@@ -99,7 +99,16 @@ def solve_lap(cost, mode, cuda, eps, eye):
 
 def compute_grad(A, P, B, sparse=False):
     AP = A.dot(P)
-    out = 4 * AP.dot(B) - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
+    print('density(AP)  =', AP.nnz / np.prod(AP.shape), file=sys.stderr)
+    APB = AP.dot(B)
+    print('density(APB) =', APB.nnz / np.prod(APB.shape), file=sys.stderr)
+    out = 4 * APB - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
+    
+    print(AP.sum(axis=1))
+    print(B.sum(axis=1))
+    print(out)
+    raise Exception
+    
     out = np.asarray(out)
     return out
 
@@ -119,6 +128,9 @@ B = load_matrix(args.B_path, shape=A.shape[0])
 # P = load_matrix(args.P_path, shape=A.shape[0])
 P = sparse.eye(A.shape[0]).tocsr()
 io_time = time() - start_time
+
+print('density(A) =', A.nnz / np.prod(A.shape), file=sys.stderr)
+print('density(B) =', B.nnz / np.prod(B.shape), file=sys.stderr)
 
 assert (A != A.T).sum() == 0
 assert (B != B.T).sum() == 0
