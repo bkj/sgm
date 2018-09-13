@@ -22,7 +22,7 @@ from scipy import sparse
 
 from lap import lapjv
 sys.path.append('auction-lap')
-from auction_lap import auction_lap
+from auction_lap.auction_lap import auction_lap
 
 from sgm import sgm
 
@@ -93,7 +93,9 @@ def solve_lap(cost_sparse, cost_offset, mode, cuda, eps, eye):
     if mode == 'exact':
         _, idx, _ = lapjv(cost.max() - cost)
     elif mode == 'auction':
-        cost = torch.Tensor(cost).cuda()
+        cost = torch.Tensor(cost)
+        if cuda:
+            cost = cost.cuda()
         _, idx, _ = auction_lap(cost, eps=eps)
         idx = idx.cpu().numpy()
     

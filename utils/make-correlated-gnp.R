@@ -55,13 +55,14 @@ rg.sample.correlated.gnp <- function(P,sigma) {
 # Params
 
 seed      = 123
-# p         = 0.5
-p         = 0.05
+p         = 0.5
+# p         = 0.05
 rho       = 0.7
 sparse    = FALSE
 
 num_seeds     = 200
 all_num_nodes = (10:20) * 500
+# all_num_nodes = (10:20) * 50
 
 # --
 # Run
@@ -105,7 +106,7 @@ for(n in all_num_nodes) {
         dir.create(outpath, showWarnings=FALSE, recursive=TRUE, mode="0777")
         
         write.csv(x$A, paste(outpath, 'A.csv', sep='/'), row.names=FALSE)
-        write.csv(x$B, paste(outpath, 'B.csv', sep='/'), row.names=FALSE)    
-        write.csv(P,   paste(outpath, 'P.csv', sep='/'), row.names=FALSE)   
+        write.csv(x$B, paste(outpath, 'B.csv', sep='/'), row.names=FALSE)
+        write.csv(P,   paste(outpath, 'P.csv', sep='/'), row.names=FALSE)
     }    
 }
