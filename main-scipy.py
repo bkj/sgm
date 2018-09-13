@@ -58,16 +58,22 @@ def parse_args():
 
 def load_matrix(path, shape=None):
     mat = pd.read_csv(path).values
-    if mat.shape[1] == 2:
+    if mat.shape[1] == 2: # sparse matrix w/o weights
         rows, cols = mat.T
         data = np.ones(rows.shape[0])
-    else:
+    elif mat.shape[1] == 3: # sparse matrix w/ weights
+        rows, cols, data = mat.T
+    else: # dense matrix
         mat = mat.astype(np.float64)
         rows, cols = np.where(mat)
-        data = mat[inds]
+        data = mat[(rows, cols)]
     
     if shape is None:
         shape = max(rows.max(), cols.max()) + 1
+    else:
+        implied_shape = max(rows.max(), cols.max()) + 1
+        if implied_shape > shape:
+            raise Exception('implied_shape > shape: switch order of inputs')
     
     mat = sparse.csr_matrix((data, (rows, cols)), shape=(shape, shape))
     mat = ((mat + mat.T) > 0).astype(np.float64) # symmetrize
@@ -104,14 +110,15 @@ args = parse_args()
 # --
 # IO
 
-args.A_path = '_data/synthetic/sparse/0.05/5000/A.edgelist'
-args.B_path = '_data/synthetic/sparse/0.05/5000/B.edgelist'
+# args.A_path = '_data/synthetic/sparse/0.05/5000/A.edgelist'
+# args.B_path = '_data/synthetic/sparse/0.05/5000/B.edgelist'
 
+start_time = time()
 A = load_matrix(args.A_path)
 B = load_matrix(args.B_path, shape=A.shape[0])
 # P = load_matrix(args.P_path, shape=A.shape[0])
 P = sparse.eye(A.shape[0]).tocsr()
-
+io_time = time() - start_time
 
 assert (A != A.T).sum() == 0
 assert (B != B.T).sum() == 0
@@ -156,7 +163,9 @@ f_perm = np.sqrt(((A[:min_nodes,:min_nodes].toarray() - B_perm[:min_nodes,:min_n
 print(json.dumps({
     "f_orig"     : float(f_orig),
     "f_perm"     : float(f_perm),
+    
     "total_time" : float(total_time),
+    "io_time"    : float(io_time),
     
     "mode"      : args.mode,
     "eps"       : args.eps,

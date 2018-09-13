@@ -1,3 +1,7 @@
+__pycache__
+*.pyc
+auction_lap/*
+_data/*
 *png
 data/*
 data.tar.gz

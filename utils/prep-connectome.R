@@ -30,8 +30,8 @@ add_isolated_nodes <- function(g, maxv, sparse) {
 
 args <- commandArgs(trailingOnly=TRUE)
 
-if(length(args) != 2) {
-    stop('prep-connectome.R <inpath> <outpath>')
+if(length(args) != 3) {
+    stop('prep-connectome.R <inpath> <outpath> <sparse>')
 }
 
 inpath  <- args[1]
@@ -63,9 +63,15 @@ if(sparse) {
 
 # --
 # Save
-cat('prep-connectome.R: saving\n', file=stderr())
 
+cat('prep-connectome.R: saving\n', file=stderr())
 dir.create(outpath, showWarnings=FALSE, recursive=TRUE, mode="0777")
-write.csv(A1.ordered, file.path(outpath, 'A1.ordered.edges'), row.names=FALSE)
-write.csv(A2.ordered, file.path(outpath, 'A2.ordered.edges'), row.names=FALSE)
-write.csv(P_start, file.path(outpath, 'P_start.edges'), row.names=FALSE)
+if(sparse) {
+    write.csv(A1.ordered, file.path(outpath, 'A.edgelist'), row.names=FALSE)
+    write.csv(A2.ordered, file.path(outpath, 'B.edgelist'), row.names=FALSE)
+    write.csv(P_start, file.path(outpath, 'P.edgelist'), row.names=FALSE)    
+} else {
+    write.csv(A1.ordered, file.path(outpath, 'A.csv'), row.names=FALSE)
+    write.csv(A2.ordered, file.path(outpath, 'B.csv'), row.names=FALSE)
+    write.csv(P_start, file.path(outpath, 'P.csv'), row.names=FALSE)    
+}
