@@ -55,10 +55,16 @@ def parse_args():
 
 
 def load_matrix(path):
-    mat = pd.read_csv(path)
-    mat = np.array(mat, dtype='float64')
-    mat = torch.Tensor(mat)
-    assert mat.size(0) == mat.size(1), "%s must be square" % path
+    mat = pd.read_csv(path).values
+    
+    if mat.shape[1] == 2:
+        raise NotImplemented
+    elif mat.shape[1] == 3:
+        raise NotImplemented
+    else:
+        mat = torch.Tensor(mat.astype(np.float64))
+        assert mat.size(0) == mat.size(1), "%s must be square" % path
+    
     return mat
 
 
@@ -88,10 +94,10 @@ def solve_lap(cost, mode, cuda, eps):
     elif mode == 'auction':
         _, idx, _ = auction_lap(cost, eps=eps)
     
-    out = torch.eye(idx.shape[0])[idx]
+    out = torch.eye(idx.size(0)).cuda()
     if cuda:
         out = out.cuda()
-    return out
+    return out[idx]
 
 def compute_grad(A, P, B):
     AP = torch.mm(A, P)
@@ -130,6 +136,7 @@ else:
     A = A[perm][:,perm]
 
 io_time = time() - t
+print('loaded in %fs' % io_time, file=sys.stderr)
 
 min_nodes, max_nodes = sorted([A.size(0), B.size(0)])
 f_orig = np.sqrt(((A[:min_nodes,:min_nodes] - B[:min_nodes,:min_nodes]) ** 2).sum())
@@ -156,20 +163,20 @@ compute_time = time() - t
 # --
 # Save results
 
-P_out_small = P_out[:min_nodes,:min_nodes].cpu()
+P_out_small = P_out[:min_nodes,:min_nodes]
 B_perm      = torch.mm(torch.mm(P_out_small, B), P_out_small.t())
 f_perm      = np.sqrt(((A[:min_nodes,:min_nodes] - B_perm[:min_nodes,:min_nodes]) ** 2).sum())
 
 print(json.dumps({
-    "f_actual"   : float(f_actual),
-    "f_orig"     : float(f_orig),
-    "f_perm"     : float(f_perm),
+    "f_actual"     : float(f_actual),
+    "f_orig"       : float(f_orig),
+    "f_perm"       : float(f_perm),
     
     "io_time"      : float(io_time),
     "compute_time" : float(compute_time),
     
-    "lap_mode"    : args.lap_mode,
-    "auction_eps" : args.auction_eps if args.lap_mode == 'auction' else None,
-    "max_nodes"   : int(max_nodes),
-    "num_seeds"   : int(num_seeds),
+    "lap_mode"     : args.lap_mode,
+    "auction_eps"  : args.auction_eps if args.lap_mode == 'auction' else None,
+    "max_nodes"    : int(max_nodes),
+    "num_seeds"    : int(num_seeds),
 }))

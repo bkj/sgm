@@ -138,6 +138,7 @@ else:
     A = A[perm][:,perm]
 
 io_time = time() - t
+print('loaded in %fs' % io_time, file=sys.stderr)
 
 assert (A != A.T).sum() == 0
 assert (B != B.T).sum() == 0
@@ -169,15 +170,15 @@ B_perm      = P_out_small.dot(B).dot(P_out_small.T)
 f_perm      = np.sqrt(((A[:min_nodes,:min_nodes].toarray() - B_perm[:min_nodes,:min_nodes].toarray()) ** 2).sum())
 
 print(json.dumps({
-    "f_actual"   : float(f_actual),
-    "f_orig"     : float(f_orig),
-    "f_perm"     : float(f_perm),
+    "f_actual"     : float(f_actual),
+    "f_orig"       : float(f_orig),
+    "f_perm"       : float(f_perm),
     
     "io_time"      : float(io_time),
     "compute_time" : float(compute_time),
     
-    "lap_mode"    : args.lap_mode,
-    "auction_eps" : args.auction_eps if args.lap_mode == 'auction' else None,
-    "max_nodes"   : int(max_nodes),
-    "num_seeds"   : int(num_seeds),
+    "lap_mode"     : args.lap_mode,
+    "auction_eps"  : args.auction_eps if args.lap_mode == 'auction' else None,
+    "max_nodes"    : int(max_nodes),
+    "num_seeds"    : int(num_seeds),
 }))
