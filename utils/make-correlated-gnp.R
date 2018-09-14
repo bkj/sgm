@@ -93,20 +93,20 @@ for(n in all_num_nodes) {
     if(sparse) {
         A_edgelist <- which(x$A > 0, arr.ind = T) - 1
         B_edgelist <- which(x$B > 0, arr.ind = T) - 1
-        P_edgelist <- which(P > 0, arr.ind=T) - 1
+        # P_edgelist <- which(P > 0, arr.ind=T) - 1
         
         outpath <- paste('_data/synthetic/sparse', p, n, sep='/')
         dir.create(outpath, showWarnings=FALSE, recursive=TRUE, mode="0777")
         
-        write.csv(A_edgelist, paste(outpath, 'A.edgelist', sep='/'), row.names=FALSE)
-        write.csv(B_edgelist, paste(outpath, 'B.edgelist', sep='/'), row.names=FALSE)    
-        # write.csv(P_edgelist, paste(outpath, 'P.edgelist', sep='/'), row.names=FALSE)   
+        write.csv(A_edgelist, paste(outpath, 'A', sep='/'), row.names=FALSE)
+        write.csv(B_edgelist, paste(outpath, 'B', sep='/'), row.names=FALSE)    
+        # write.csv(P_edgelist, paste(outpath, 'P', sep='/'), row.names=FALSE)   
     } else {
         outpath <- paste('_data/synthetic/dense', p, n, sep='/')
         dir.create(outpath, showWarnings=FALSE, recursive=TRUE, mode="0777")
         
-        write.csv(x$A, paste(outpath, 'A.csv', sep='/'), row.names=FALSE)
-        write.csv(x$B, paste(outpath, 'B.csv', sep='/'), row.names=FALSE)
-        # write.csv(P,   paste(outpath, 'P.csv', sep='/'), row.names=FALSE)
+        write.csv(x$A, paste(outpath, 'A', sep='/'), row.names=FALSE)
+        write.csv(x$B, paste(outpath, 'B', sep='/'), row.names=FALSE)
+        # write.csv(P,   paste(outpath, 'P', sep='/'), row.names=FALSE)
     }    
 }

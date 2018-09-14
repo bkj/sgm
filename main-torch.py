@@ -94,7 +94,7 @@ def solve_lap(cost, mode, cuda, eps):
     elif mode == 'auction':
         _, idx, _ = auction_lap(cost, eps=eps)
     
-    out = torch.eye(idx.size(0)).cuda()
+    out = torch.eye(idx.size(0))
     if cuda:
         out = out.cuda()
     return out[idx]

@@ -19,10 +19,8 @@ def sgm(A, P, B, compute_grad, solve_lap, num_iters, tolerance, prod_sum=None, v
     stop = False
     for i in range(num_iters):
         iter_start_time = time()
-        
-        lap_start_time = time()
         T = solve_lap(grad)
-        lap_time = time() - lap_start_time
+        lap_time = time() - iter_start_time
         
         grad_t = compute_grad(A, T, B)
         
