@@ -85,6 +85,7 @@ def square_pad(x, n):
 
 def solve_lap(cost, mode, cuda, eps):
     cost = cost - cost.min() # Make >= 0
+    print('cost.max()', cost.max())
     if mode == 'jv':
         cost = cost.cpu().numpy()
         _, idx, _ = lapjv(cost.max() - cost)
@@ -122,7 +123,7 @@ assert A.size() == B.size()
 f_actual = np.sqrt(((A - B) ** 2).sum())
 
 if args.P_path:
-    P = load_matrix(args.P_path, shape=A.shape[0])
+    P = load_matrix(args.P_path, shape=A.size(0))
     num_seeds = (P.diagonal() == 1).sum()
 else:
     num_seeds = args.num_seeds
