@@ -9,7 +9,7 @@
 import json
 from time import time
 
-def sgm(A, P, B, eye, compute_grad, solve_lap, num_iters, tolerance, prod_sum=None, verbose=True):
+def sgm(A, P, B, compute_grad, solve_lap, num_iters, tolerance, prod_sum=None, verbose=True):
     if prod_sum is None:
         prod_sum = _prod_sum
     
@@ -21,7 +21,7 @@ def sgm(A, P, B, eye, compute_grad, solve_lap, num_iters, tolerance, prod_sum=No
         iter_start_time = time()
         
         lap_start_time = time()
-        T = solve_lap(grad, eye=eye)
+        T = solve_lap(grad)
         lap_time = time() - lap_start_time
         
         grad_t = compute_grad(A, T, B)
@@ -61,4 +61,4 @@ def sgm(A, P, B, eye, compute_grad, solve_lap, num_iters, tolerance, prod_sum=No
         if stop:
             break
     
-    return solve_lap(P, eye=eye)
+    return solve_lap(P)

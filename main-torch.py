@@ -4,8 +4,6 @@
     sgm.py
 """
 
-from __future__ import division, print_function
-
 import warnings
 warnings.filterwarnings("ignore", module="matplotlib")
 
@@ -18,11 +16,13 @@ from time import time
 from functools import partial
 
 import torch
-from torch.nn.functional import pad
+torch.set_default_tensor_type('torch.DoubleTensor')
+
+from scipy import sparse
 
 from lap import lapjv
 sys.path.append('auction-lap')
-from auction_lap import auction_lap
+from auction_lap.auction_lap import auction_lap
 
 from sgm import sgm
 
@@ -32,28 +32,25 @@ from sgm import sgm
 def parse_args():
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--A-path', type=str, required=True)
-    parser.add_argument('--B-path', type=str, required=True)
-    parser.add_argument('--P-path', type=str, required=True)
-    parser.add_argument('--outpath', type=str, default='./_simple_corr.txt')
+    # Data params
+    parser.add_argument('--A-path', type=str, default='_data/synthetic/dense/0.5/1000/A.csv')
+    parser.add_argument('--B-path', type=str, default='_data/synthetic/dense/0.5/1000/B.csv')
+    parser.add_argument('--P-path', type=str)
+    parser.add_argument('--num-seeds', type=int)
     
     # SGM params
-    parser.add_argument('--m', type=int, default=0)
     parser.add_argument('--num-iters', type=int, default=20)
     parser.add_argument('--tolerance', type=int, default=1)
-    parser.add_argument('--symmetric', action="store_true")
-    parser.add_argument('--sparse', action="store_true")
     
     # LAP params
-    parser.add_argument('--mode', type=str, default='exact')
-    parser.add_argument('--eps', type=float, default=100)
+    parser.add_argument('--lap-mode', type=str, default='jv', choices=['auction', 'jv'])
+    parser.add_argument('--auction-eps', type=float, default=100)
     
-    parser.add_argument('--plot', action="store_true")
+    # Misc params
     parser.add_argument('--cuda', action="store_true")
-    parser.add_argument('--no-double', action="store_true")
     
     args = parser.parse_args()
-    assert args.m == 0, "m != 0 -- not implemented yet"
+    assert (args.P_path is not None) or (args.num_seeds is not None)
     return args
 
 
@@ -80,9 +77,9 @@ def square_pad(x, n):
     
     return x
 
-def solve_lap(cost, mode, cuda, eps, eye):
+def solve_lap(cost, mode, cuda, eps):
     cost = cost - cost.min() # Make >= 0
-    if mode == 'exact':
+    if mode == 'jv':
         cost = cost.cpu().numpy()
         _, idx, _ = lapjv(cost.max() - cost)
         idx = torch.LongTensor(idx.astype(int))
@@ -91,14 +88,14 @@ def solve_lap(cost, mode, cuda, eps, eye):
     elif mode == 'auction':
         _, idx, _ = auction_lap(cost, eps=eps)
     
-    return eye[idx]
+    out = torch.eye(idx.shape[0])[idx]
+    if cuda:
+        out = out.cuda()
+    return out
 
-def compute_grad(A, P, B, sparse=False):
-    if not sparse:
-        return torch.mm(torch.mm(A, P), B)
-    else:
-        AP = torch.mm(A, P)
-        return 4 * torch.mm(AP, B) - 2 * AP.sum(dim=-1).view(-1, 1) - 2 * B.sum(dim=0).view(1, -1) + A.size(0)
+def compute_grad(A, P, B):
+    AP = torch.mm(A, P)
+    return 4 * torch.mm(AP, B) - 2 * (AP.sum(dim=-1).view(-1, 1) + B.sum(dim=0).view(1, -1)) + A.size(0)
 
 def prod_sum(x, y):
     return (x * y).sum()
@@ -106,81 +103,73 @@ def prod_sum(x, y):
 
 args = parse_args()
 
-if args.no_double:
-    torch.set_default_tensor_type('torch.FloatTensor')
-else:
-    torch.set_default_tensor_type('torch.DoubleTensor')
-
 # --
 # IO
 
+t = time()
+
 A = load_matrix(args.A_path)
 B = load_matrix(args.B_path)
-P = load_matrix(args.P_path)
 
-if not args.sparse:
-    A_orig, B_orig = A.clone(), B.clone()
-    A[A == 0] = -1
-    B[B == 0] = -1
+assert A.size() == B.size()
+
+f_actual = np.sqrt(((A - B) ** 2).sum())
+
+if args.P_path:
+    P = load_matrix(args.P_path, shape=A.shape[0])
+    num_seeds = (P.diagonal() == 1).sum()
 else:
-    A_orig, B_orig = A, B
+    num_seeds = args.num_seeds
+    
+    P = torch.eye(A.size(0))
+    P[num_seeds:, num_seeds:] = 0
+    
+    perm = np.arange(P.shape[0])
+    perm[num_seeds:] = np.random.permutation(perm[num_seeds:])
+    perm = torch.LongTensor(perm)
+    A = A[perm][:,perm]
 
-# --
-# Prep
+io_time = time() - t
 
-n_seeds = (P.diag() == 1).sum()
-# >>
-# Start at vertex of polytope corresponding to seed
-# P[n_seeds:, n_seeds:] = 0
-# <<
-max_nodes = max([A.size(0), B.size(0)])
-min_nodes = min([A.size(0), B.size(0)])
-
-A = square_pad(A, max_nodes)
-B = square_pad(B, max_nodes)
-eye = torch.eye(max_nodes)
-
-if args.cuda:
-    A, B, P, eye = A.cuda(), B.cuda(), P.cuda(), eye.cuda()
+min_nodes, max_nodes = sorted([A.size(0), B.size(0)])
+f_orig = np.sqrt(((A[:min_nodes,:min_nodes] - B[:min_nodes,:min_nodes]) ** 2).sum())
 
 # --
 # Run
 
-start_time = time()
+if args.cuda:
+    A, B, P = A.cuda(), B.cuda(), P.cuda()
+
+t = time() 
 P_out = sgm(
     A=A,
     P=P,
     B=B,
-    eye=eye,
-    compute_grad=partial(compute_grad, sparse=args.sparse),
-    solve_lap=partial(solve_lap, mode=args.mode, cuda=args.cuda, eps=1),
+    compute_grad=compute_grad,
+    solve_lap=partial(solve_lap, mode=args.lap_mode, cuda=args.cuda, eps=args.auction_eps),
     prod_sum=prod_sum,
     num_iters=args.num_iters,
     tolerance=args.tolerance,
 )
-total_time = time() - start_time
+compute_time = time() - t
 
 # --
 # Save results
 
-P_out_small = P_out[:min_nodes,:min_nodes]
-P_out_small = P_out_small.cpu()
-
-B_perm = torch.mm(torch.mm(P_out_small, B_orig), P_out_small.t())
-
-f_orig = np.sqrt(((A_orig[:min_nodes,:min_nodes] - B_orig[:min_nodes,:min_nodes]) ** 2).sum())
-f_perm = np.sqrt(((A_orig[:min_nodes,:min_nodes] - B_perm[:min_nodes,:min_nodes]) ** 2).sum())
+P_out_small = P_out[:min_nodes,:min_nodes].cpu()
+B_perm      = torch.mm(torch.mm(P_out_small, B), P_out_small.t())
+f_perm      = np.sqrt(((A[:min_nodes,:min_nodes] - B_perm[:min_nodes,:min_nodes]) ** 2).sum())
 
 print(json.dumps({
+    "f_actual"   : float(f_actual),
     "f_orig"     : float(f_orig),
     "f_perm"     : float(f_perm),
-    "total_time" : float(total_time),
     
-    "mode"      : args.mode,
-    "eps"       : args.eps,
-    "max_nodes" : int(max_nodes),
-    "n_seeds"   : int(n_seeds),
+    "io_time"      : float(io_time),
+    "compute_time" : float(compute_time),
+    
+    "lap_mode"    : args.lap_mode,
+    "auction_eps" : args.auction_eps if args.lap_mode == 'auction' else None,
+    "max_nodes"   : int(max_nodes),
+    "num_seeds"   : int(num_seeds),
 }))
-
-corr = P_out.nonzero().cpu().numpy() + 1
-np.savetxt(args.outpath, corr, fmt='%d')
