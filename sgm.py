@@ -13,6 +13,7 @@
     
 """
 
+import sys
 import json
 from time import time
 
@@ -35,7 +36,7 @@ def _check_convergence(c, d, e):
     
     return alpha, f1, falpha
 
-
+import numpy as np
 class BaseSGM:
     def __reset_timers(self):
         self.lap_times   = []
@@ -44,26 +45,30 @@ class BaseSGM:
     
     def run(self, A, P, B, num_iters, tolerance, verbose=True):
         self.__reset_timers()
+        start_time = time()
         
         t = time()
-        grad = self.compute_grad(A, P, B)
+        sparse_grad, dense_grad = self.compute_grad(A, P, B)
         self.grad_times.append(time() - t)
         
         stop = False
         for i in range(num_iters):
+            if verbose:
+                print('iter=%d | %fs' % (i, time() - start_time), file=sys.stderr)
+            
             t = time()
-            T = self.solve_lap(grad)
+            T = self.solve_lap(sparse_grad)
             self.lap_times.append(time() - t)
             
             t = time()
-            gradt = self.compute_grad(A, T, B)
+            sparse_gradt, dense_gradt = self.compute_grad(A, T, B)
             self.grad_times.append(time() - t)
             
             t = time()
-            ps_grad_P  = self.prod_sum(grad, P)
-            ps_grad_T  = self.prod_sum(grad, T)
-            ps_gradt_P = self.prod_sum(gradt, P)
-            ps_gradt_T = self.prod_sum(gradt, T)
+            ps_grad_P  = self.prod_sum(sparse_grad + dense_grad, P)
+            ps_grad_T  = self.prod_sum(sparse_grad + dense_grad, T)
+            ps_gradt_P = self.prod_sum(sparse_gradt + dense_gradt, P)
+            ps_gradt_T = self.prod_sum(sparse_gradt + dense_gradt, T)
             
             alpha, f1, falpha = _check_convergence(
                 c=ps_grad_P,
@@ -72,12 +77,13 @@ class BaseSGM:
             )
             
             if (alpha > 0) and (alpha < tolerance) and (falpha > max(0, f1)):
-                P    = (alpha * P)    + (1 - alpha) * T
-                grad = (alpha * grad) + (1 - alpha) * gradt
+                P           = (alpha * P)    + (1 - alpha) * T
+                sparse_grad = (alpha * sparse_grad) + (1 - alpha) * sparse_gradt
+                dense_grad  = (alpha * dense_grad) + (1 - alpha) * dense_gradt
             elif f1 < 0:
-                P         = T
-                grad      = gradt
-                ps_grad_P = ps_gradt_P
+                P           = T
+                sparse_grad = sparse_gradt
+                dense_grad  = dense_gradt
             else:
                 stop = True
             
@@ -91,9 +97,8 @@ class BaseSGM:
         self.lap_times.append(time() - t)
         return P_out
 
-# --
 
-class TruncatedSGM:
+class BaseFusedSGM:
     def __reset_timers(self):
         self.lap_times   = []
         self.grad_times  = []
@@ -101,9 +106,13 @@ class TruncatedSGM:
     
     def run(self, A, P, B, num_iters, tolerance, verbose=True):
         self.__reset_timers()
+        start_time = time()
         
         stop = False
         for i in range(num_iters):
+            if verbose:
+                print('iter=%d | %fs' % (i, time() - start_time), file=sys.stderr)
+            
             t = time()
             T = self.solve_lap_fused(A, P, B)
             self.lap_times.append(time() - t)
