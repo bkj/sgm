@@ -13,42 +13,23 @@ import argparse
 import numpy as np
 import pandas as pd
 from time import time
-from functools import partial
 
 from scipy import sparse
 
-from lap import lapjv
-
-from sgm import BaseSGM, TruncatedSGM
-
-from hashlib import md5
+from backends import TruncatedSGM as SGMClass
+# from backends import ScipySparseSGM as SGMClass
 
 # --
 # Helpers
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    
-    # Data params
-    parser.add_argument('--A-path', type=str, default='_data/synthetic/dense/0.5/1000/A.csv')
-    parser.add_argument('--B-path', type=str, default='_data/synthetic/dense/0.5/1000/B.csv')
-    parser.add_argument('--P-path', type=str)
+    parser.add_argument('--A-path',    type=str, default='_data/synthetic/dense/0.5/1000/A.csv')
+    parser.add_argument('--B-path',    type=str, default='_data/synthetic/dense/0.5/1000/B.csv')
     parser.add_argument('--num-seeds', type=int)
-    
-    # SGM params
     parser.add_argument('--num-iters', type=int, default=20)
     parser.add_argument('--tolerance', type=int, default=1)
-    
-    # LAP params
-    parser.add_argument('--lap-mode', type=str, default='jv', choices=['auction', 'jv'])
-    parser.add_argument('--auction-eps', type=float, default=100)
-    
-    # Misc params
-    parser.add_argument('--cuda', action="store_true")
-    
-    args = parser.parse_args()
-    assert (args.P_path is not None) or (args.num_seeds is not None)
-    return args
+    return parser.parse_args()
 
 
 def load_matrix(path, shape=None):
@@ -76,70 +57,6 @@ def load_matrix(path, shape=None):
     assert mat.shape[0] == mat.shape[1], "%s must be square" % path
     return mat
 
-
-class ScipySparseSGM(BaseSGM):
-    def solve_lap(self, cost):
-        # cost_all = cost.copy()
-        
-        if isinstance(cost, sparse.csr_matrix):
-            cost = cost.toarray()
-        
-        cost = cost - cost.min()
-        _, idx, _ = lapjv(cost.max() - cost)
-        
-        # print("score", cost_all[(np.arange(cost.shape[0]), idx)].sum())
-        # print(md5(str(idx).encode()).hexdigest())
-        
-        return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
-        
-    def compute_grad(self, A, P, B):
-        AP = A.dot(P)
-        out = 4 * AP.dot(B) - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
-        out = np.asarray(out)
-        return out
-        
-    def prod_sum(self, x, y):
-        return y.multiply(x).sum()
-
-class ScipyTruncatedSGM(TruncatedSGM):
-    def solve_lap(self, cost):
-        if isinstance(cost, sparse.csr_matrix):
-            cost = cost.toarray()
-        
-        cost = cost - cost.min()
-        _, idx, _ = lapjv(cost.max() - cost)
-        
-        return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
-    
-    def solve_lap_fused(self, A, P, B):
-        cost = A.dot(P).dot(B)
-        
-        if isinstance(cost, sparse.csr_matrix):
-            cost = cost.toarray()
-        
-        cost = cost - cost.min()
-        _, idx, _ = lapjv(cost.max() - cost)
-        
-        # cost_all = self.compute_grad(A, P, B)
-        # print("score", cost_all[(np.arange(cost.shape[0]), idx)].sum())
-        # print(md5(str(idx).encode()).hexdigest())
-        
-        return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
-        
-    def sparse_trace(self, A, X, B, Y):
-        AX  = A.dot(X)
-        YBt = Y.dot(B.T)
-        
-        AX_sum = Y.dot(AX.sum(axis=1)).sum()
-        B_sum  = Y.T.dot(B.sum(axis=0).T).sum()
-        
-        return 4 * AX.multiply(YBt).sum() + A.shape[0] * Y.sum() - 2 * (AX_sum + B_sum)
-
-# SGMClass = ScipySparseSGM
-# print('ScipySparseSGM')
-
-SGMClass = ScipyTruncatedSGM
-print('ScipyTruncatedSGM')
 
 args = parse_args()
 np.random.seed(123)
