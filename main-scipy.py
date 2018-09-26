@@ -111,12 +111,6 @@ class ScipyTruncatedSGM(TruncatedSGM):
         
         return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
     
-    def compute_grad(self, A, P, B):
-        AP = A.dot(P)
-        out = 4 * AP.dot(B) - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
-        out = np.asarray(out)
-        return out
-    
     def solve_lap_fused(self, A, P, B):
         cost = A.dot(P).dot(B)
         
@@ -133,7 +127,7 @@ class ScipyTruncatedSGM(TruncatedSGM):
         return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
         
     def sparse_trace(self, A, X, B, Y):
-        AX = A.dot(X)
+        AX  = A.dot(X)
         YBt = Y.dot(B.T)
         
         AX_sum = Y.dot(AX.sum(axis=1)).sum()

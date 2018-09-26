@@ -102,9 +102,6 @@ class TruncatedSGM:
     def run(self, A, P, B, num_iters, tolerance, verbose=True):
         self.__reset_timers()
         
-        t = time()
-        self.grad_times.append(time() - t)
-        
         stop = False
         for i in range(num_iters):
             t = time()
@@ -112,7 +109,7 @@ class TruncatedSGM:
             self.lap_times.append(time() - t)
             
             t = time()
-            
+            # Could avoid recomputation here
             ps_grad_P  = self.sparse_trace(A, P, B, P)
             ps_grad_T  = self.sparse_trace(A, P, B, T)
             ps_gradt_P = self.sparse_trace(A, T, B, P)
