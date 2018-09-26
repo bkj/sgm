@@ -17,33 +17,49 @@ import json
 from time import time
 
 def _check_convergence(c, d, e):
-    if (c - d + e == 0) and (d - 2 * e == 0):
+    cde = c + e - d 
+    d2e = d - 2 * e
+    
+    if (cde == 0) and (d2e == 0):
         alpha = 0
+        falpha = -1 # NA value
     else:
-        if (c - d + e == 0):
-            alpha = float('inf')
+        if (cde == 0):
+            alpha  = float('inf')
+            falpha = -1 # NA value
         else:
-            alpha = -(d - 2 * e) / (2 * (c - d + e))
-            
-    f1     = c - e
-    falpha = (c - d + e) * alpha ** 2 + (d - 2 * e) * alpha
+            alpha = -d2e / (2 * cde)
+            falpha = cde * alpha ** 2 + d2e * alpha
+    
+    f1 = c - e
     
     return alpha, f1, falpha
 
 
 class BaseSGM:
+    def __reset_timers(self):
+        self.lap_times   = []
+        self.grad_times  = []
+        self.check_times = []
+    
     def run(self, A, P, B, num_iters, tolerance, verbose=True):
+        self.__reset_timers()
         
+        t = time()
         grad = self.compute_grad(A, P, B)
+        self.grad_times.append(time() - t)
         
         stop = False
         for i in range(num_iters):
-            iter_start_time = time()
+            t = time()
             T = self.solve_lap(grad)
-            lap_time = time() - iter_start_time
+            self.lap_times.append(time() - t)
             
+            t = time()
             gradt = self.compute_grad(A, T, B)
+            self.grad_times.append(time() - t)
             
+            t = time()
             ps_grad_P  = self.prod_sum(grad, P)
             ps_grad_T  = self.prod_sum(grad, T)
             ps_gradt_P = self.prod_sum(gradt, P)
@@ -56,8 +72,8 @@ class BaseSGM:
             )
             
             if (alpha > 0) and (alpha < tolerance) and (falpha > max(0, f1)):
-                P         = (alpha * P)         + (1 - alpha) * T
-                grad      = (alpha * grad)      + (1 - alpha) * gradt
+                P    = (alpha * P)    + (1 - alpha) * T
+                grad = (alpha * grad) + (1 - alpha) * gradt
             elif f1 < 0:
                 P         = T
                 grad      = gradt
@@ -65,21 +81,62 @@ class BaseSGM:
             else:
                 stop = True
             
-            if verbose:
-                iter_time = time() - iter_start_time
-                print(json.dumps({
-                    "iter"       : i,
-                    "lap_time"   : lap_time,
-                    "nolap_time" : iter_time - lap_time,
-                    
-                    # debugging
-                    # "ps_grad_P"  : float(ps_grad_P),
-                    # "ps_grad_T"  : float(ps_grad_T),
-                    # "ps_gradt_P" : float(ps_gradt_P),
-                    # "ps_gradt_T" : float(ps_gradt_T),
-                }))
+            self.check_times.append(time() - t)
             
             if stop:
                 break
         
-        return self.solve_lap(P)
+        t = time()
+        P_out = self.solve_lap(P)
+        self.lap_times.append(time() - t)
+        return P_out
+
+# --
+
+class TruncatedSGM:
+    def __reset_timers(self):
+        self.lap_times   = []
+        self.grad_times  = []
+        self.check_times = []
+    
+    def run(self, A, P, B, num_iters, tolerance, verbose=True):
+        self.__reset_timers()
+        
+        t = time()
+        self.grad_times.append(time() - t)
+        
+        stop = False
+        for i in range(num_iters):
+            t = time()
+            T = self.solve_lap_fused(A, P, B)
+            self.lap_times.append(time() - t)
+            
+            t = time()
+            
+            ps_grad_P  = self.sparse_trace(A, P, B, P)
+            ps_grad_T  = self.sparse_trace(A, P, B, T)
+            ps_gradt_P = self.sparse_trace(A, T, B, P)
+            ps_gradt_T = self.sparse_trace(A, T, B, T)
+            
+            alpha, f1, falpha = _check_convergence(
+                c=ps_grad_P,
+                d=ps_gradt_P + ps_grad_T,
+                e=ps_gradt_T
+            )
+            
+            if (alpha > 0) and (alpha < tolerance) and (falpha > max(0, f1)):
+                P = (alpha * P) + (1 - alpha) * T
+            elif f1 < 0:
+                P = T
+            else:
+                stop = True
+            
+            self.check_times.append(time() - t)
+            
+            if stop:
+                break
+        
+        t = time()
+        P_out = self.solve_lap(P)
+        self.lap_times.append(time() - t)
+        return P_out

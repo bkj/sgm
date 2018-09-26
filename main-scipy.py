@@ -15,16 +15,13 @@ import pandas as pd
 from time import time
 from functools import partial
 
-import torch
-torch.set_default_tensor_type('torch.DoubleTensor')
-
 from scipy import sparse
 
 from lap import lapjv
-sys.path.append('auction-lap')
-from auction_lap.auction_lap import auction_lap
 
-from sgm import sgm
+from sgm import BaseSGM, TruncatedSGM
+
+from hashlib import md5
 
 # --
 # Helpers
@@ -80,38 +77,78 @@ def load_matrix(path, shape=None):
     return mat
 
 
-def solve_lap(cost, mode, cuda, eps):
-    
-    if isinstance(cost, sparse.csr_matrix):
-        cost = cost.toarray()
-    
-    cost = cost - cost.min() # Make >= 0
-    
-    if mode == 'jv':
+class ScipySparseSGM(BaseSGM):
+    def solve_lap(self, cost):
+        # cost_all = cost.copy()
+        
+        if isinstance(cost, sparse.csr_matrix):
+            cost = cost.toarray()
+        
+        cost = cost - cost.min()
         _, idx, _ = lapjv(cost.max() - cost)
-    elif mode == 'auction':
-        cost = torch.Tensor(cost)
-        if cuda:
-            cost = cost.cuda()
-        _, idx, _ = auction_lap(cost, eps=eps)
-        idx = idx.cpu().numpy()
+        
+        # print("score", cost_all[(np.arange(cost.shape[0]), idx)].sum())
+        # print(md5(str(idx).encode()).hexdigest())
+        
+        return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
+        
+    def compute_grad(self, A, P, B):
+        AP = A.dot(P)
+        out = 4 * AP.dot(B) - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
+        out = np.asarray(out)
+        return out
+        
+    def prod_sum(self, x, y):
+        return y.multiply(x).sum()
+
+class ScipyTruncatedSGM(TruncatedSGM):
+    def solve_lap(self, cost):
+        if isinstance(cost, sparse.csr_matrix):
+            cost = cost.toarray()
+        
+        cost = cost - cost.min()
+        _, idx, _ = lapjv(cost.max() - cost)
+        
+        return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
     
-    return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
+    def compute_grad(self, A, P, B):
+        AP = A.dot(P)
+        out = 4 * AP.dot(B) - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
+        out = np.asarray(out)
+        return out
+    
+    def solve_lap_fused(self, A, P, B):
+        cost = A.dot(P).dot(B)
+        
+        if isinstance(cost, sparse.csr_matrix):
+            cost = cost.toarray()
+        
+        cost = cost - cost.min()
+        _, idx, _ = lapjv(cost.max() - cost)
+        
+        # cost_all = self.compute_grad(A, P, B)
+        # print("score", cost_all[(np.arange(cost.shape[0]), idx)].sum())
+        # print(md5(str(idx).encode()).hexdigest())
+        
+        return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
+        
+    def sparse_trace(self, A, X, B, Y):
+        AX = A.dot(X)
+        YBt = Y.dot(B.T)
+        
+        AX_sum = Y.dot(AX.sum(axis=1)).sum()
+        B_sum  = Y.T.dot(B.sum(axis=0).T).sum()
+        
+        return 4 * AX.multiply(YBt).sum() + A.shape[0] * Y.sum() - 2 * (AX_sum + B_sum)
 
+# SGMClass = ScipySparseSGM
+# print('ScipySparseSGM')
 
-def compute_grad(A, P, B, sparse=False):
-    AP = A.dot(P)
-    out = 4 * AP.dot(B) - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
-    out = np.asarray(out)
-    return out
-
-
-def prod_sum(x, y):
-    return y.multiply(x).sum()
-
+SGMClass = ScipyTruncatedSGM
+print('ScipyTruncatedSGM')
 
 args = parse_args()
-
+np.random.seed(123)
 
 # --
 # IO
@@ -150,15 +187,13 @@ f_orig = np.sqrt(((A[:min_nodes,:min_nodes].toarray() - B[:min_nodes,:min_nodes]
 # Run
 
 start_time = time() 
-P_out = sgm(
+P_out = SGMClass().run(
     A=A,
     P=P,
     B=B,
-    compute_grad=compute_grad,
-    solve_lap=partial(solve_lap, mode=args.lap_mode, cuda=args.cuda, eps=args.auction_eps),
-    prod_sum=prod_sum,
     num_iters=args.num_iters,
     tolerance=args.tolerance,
+    verbose=True
 )
 compute_time = time() - start_time
 
