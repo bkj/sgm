@@ -3,25 +3,14 @@
 """
     sgm.py
     
-    Agnostic SGM implementation
-    
-    Notes:
-        - `compute_grad` returns a dense matrix, which is the sum of a sparse
-        matrix and the outer sum of a row vector and a column vector.  So if 
-        we were to write a custom LAP solver, we may be able to take advantage
-        of this to same memory space, which is a concern.
-    
+    Agnostic SGM base classes
 """
 
 import sys
-import json
 from time import time
 
-
-
-
 class _BaseSGM:
-    def __reset_timers(self):
+    def _reset_timers(self):
         self.lap_times   = []
         self.grad_times  = []
         self.check_times = []
@@ -51,25 +40,27 @@ class _BaseSGM:
         else:
             return None, True  # stop
 
+# --
+# Original implementation
 
-class BaseSGM(_BaseSGM):
+class BaseSGMClassic(_BaseSGM):
     def run(self, A, P, B, num_iters, tolerance, verbose=True):
-        self.__reset_timers()
-        sparse_grad, dense_grad = self.compute_grad(A, P, B)
+        self._reset_timers()
         
-        stop = False
+        grad = self.compute_grad(A, P, B)
+        
         for i in range(num_iters):
             if verbose:
-                print('iter=%d | %fs' % (i, time() - self.start_time), file=sys.stderr)
+                print('iter=%d      | %fs' % (i, time() - self.start_time), file=sys.stderr)
             
-            T = self.solve_lap(sparse_grad)
+            T = self.solve_lap(grad)
             
-            sparse_gradt, dense_gradt = self.compute_grad(A, T, B)
+            gradt = self.compute_grad(A, T, B)
             
-            ps_grad_P  = self.prod_sum(sparse_grad + dense_grad, P)
-            ps_grad_T  = self.prod_sum(sparse_grad + dense_grad, T)
-            ps_gradt_P = self.prod_sum(sparse_gradt + dense_gradt, P)
-            ps_gradt_T = self.prod_sum(sparse_gradt + dense_gradt, T)
+            ps_grad_P  = self.compute_trace(grad, P)
+            ps_grad_T  = self.compute_trace(grad, T)
+            ps_gradt_P = self.compute_trace(gradt, P)
+            ps_gradt_T = self.compute_trace(gradt, T)
             
             alpha, stop = self.check_convergence(
                 c=ps_grad_P,
@@ -82,39 +73,43 @@ class BaseSGM(_BaseSGM):
                 break
             
             if alpha is not None:
-                P           = (alpha * P)           + (1 - alpha) * T
-                sparse_grad = (alpha * sparse_grad) + (1 - alpha) * sparse_gradt
-                dense_grad  = (alpha * dense_grad)  + (1 - alpha) * dense_gradt
+                P    = (alpha * P)    + (1 - alpha) * T
+                grad = (alpha * grad) + (1 - alpha) * gradt
             else:
-                P           = T
-                sparse_grad = sparse_gradt
-                dense_grad  = dense_gradt
+                P    = T
+                grad = gradt
         
         P_out = self.solve_lap(P)
         return P_out
 
-# =====================================
+# --
+# Sparse gradient + trace
 
-class BaseSparseSGM(_BaseSGM):
+class BaseSGMSparse(_BaseSGM):
     def run(self, A, P, B, num_iters, tolerance, verbose=True):
-        self.__reset_timers()
+        if hasattr(self, '_warmup'):
+            self._warmup()
+            
+        self._reset_timers()
         
-        grad = A.dot(P).dot(B)
+        AP = A.dot(P)
+        grad = AP.dot(B)
         
-        stop = False
         for i in range(num_iters):
             if verbose:
-                print('iter=%d | %fs' % (i, time() - self.start_time), file=sys.stderr)
+                print('iter=%d      | %fs' % (i, time() - self.start_time), file=sys.stderr)
             
+            t = time()
             T = self.solve_lap(grad)
+            print('solve_lap      ', int(1000 * (time() - t)))
             
-            gradt = A.dot(T).dot(B)
+            AT = A.dot(T)
+            gradt = AT.dot(B)
             
-            # Could avoid recomputation here
-            ps_grad_P  = self.sparse_trace(A, P, B, P)
-            ps_grad_T  = self.sparse_trace(A, P, B, T)
-            ps_gradt_P = self.sparse_trace(A, T, B, P)
-            ps_gradt_T = self.sparse_trace(A, T, B, T)
+            ps_grad_P  = self.compute_trace(AP, B, P)
+            ps_grad_T  = self.compute_trace(AP, B, T)
+            ps_gradt_P = self.compute_trace(AT, B, P)
+            ps_gradt_T = self.compute_trace(AT, B, T)
             
             alpha, stop = self.check_convergence(
                 c=ps_grad_P,
@@ -129,32 +124,41 @@ class BaseSparseSGM(_BaseSGM):
             if alpha is not None:
                 P    = (alpha * P) + (1 - alpha) * T
                 grad = (alpha * grad) + (1 - alpha) * gradt
+                AP   = (alpha * AP) + (1 - alpha) * AT
             else:
-                P = T
+                P    = T
                 grad = gradt
+                AP   = AT
         
         P_out = self.solve_lap(P)
         return P_out
 
-# =====================================
+# --
+# "Fused" operations
 
-class BaseFusedSGM(_BaseSGM):
+class BaseSGMFused(_BaseSGM):
     def run(self, A, P, B, num_iters, tolerance, verbose=True):
-        self.__reset_timers()
+        if hasattr(self, '_warmup'):
+            self._warmup()
         
-        stop = False
+        self._reset_timers()
+        
         AP = A.dot(P)
+        
         for i in range(num_iters):
             if verbose:
-                print('iter=%d | %fs' % (i, time() - self.start_time), file=sys.stderr)
+                print('iter=%d      | %fs' % (i, time() - self.start_time), file=sys.stderr)
             
-            T = self.solve_lap_fused(AP, B)
+            t = time()
+            T = self.solve_lap_fused(AP, B, verbose=verbose)
+            print('solve_lap_fused', int(1000 * (time() - t)))
             
             AT = A.dot(T)
-            ps_grad_P  = self.sparse_trace(AP, B, P)
-            ps_grad_T  = self.sparse_trace(AP, B, T)
-            ps_gradt_P = self.sparse_trace(AT, B, P)
-            ps_gradt_T = self.sparse_trace(AT, B, T)
+            
+            ps_grad_P  = self.compute_trace(AP, B, P)
+            ps_grad_T  = self.compute_trace(AP, B, T)
+            ps_gradt_P = self.compute_trace(AT, B, P)
+            ps_gradt_T = self.compute_trace(AT, B, T)
             
             alpha, stop = self.check_convergence(
                 c=ps_grad_P,
@@ -173,5 +177,5 @@ class BaseFusedSGM(_BaseSGM):
                 P  = T
                 AP = AT
         
-        P_out = self.solve_lap(P)
+        P_out = self.solve_lap_exact(P)
         return P_out
