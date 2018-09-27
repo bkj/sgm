@@ -57,7 +57,7 @@ class _ScipySGMClassic(BaseSGMClassic):
 
 class JVClassicSGM(_ScipySGMClassic):
     def solve_lap(self, cost):
-        return _lapjv(cost, False)
+        return _lapjv(cost, augment=False)
 
 
 class AuctionClassicSGM(_ScipySGMClassic):
