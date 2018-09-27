@@ -14,7 +14,7 @@ from sgm import BaseSGMClassic, BaseSGMSparse, BaseSGMFused
 
 import sys
 sys.path.append('/home/bjohnson/projects/cuda_auction/python')
-from lap_auction import csr_lap_auction, dot_auction
+from lap_auction import dense_lap_auction, csr_lap_auction, dot_auction
 
 # --
 # Helpers
@@ -56,14 +56,15 @@ class _ScipySGMClassic(BaseSGMClassic):
 
 
 class JVClassicSGM(_ScipySGMClassic):
-    def solve_lap(self, cost, augment=True):
-        return _lapjv(cost, augment)
+    def solve_lap(self, cost):
+        return _lapjv(cost, False)
 
 
 class AuctionClassicSGM(_ScipySGMClassic):
-    def solve_lap(self, cost, augment=True):
-        idx = csr_lap_auction(cost,
-            verbose=True,
+    def solve_lap(self, cost, verbose=False):
+        print(cost)
+        idx = dense_lap_auction(cost,
+            verbose=verbose,
             num_runs=1,
             auction_max_eps=1.0,
             auction_min_eps=1.0,
@@ -94,9 +95,9 @@ class JVSparseSGM(_ScipySGMSparse):
 
 
 class AuctionSparseSGM(_ScipySGMSparse):
-    def solve_lap(self, cost, augment=True):
+    def solve_lap(self, cost, augment=True, verbose=False):
         idx = csr_lap_auction(cost,
-            verbose=True,
+            verbose=verbose,
             num_runs=1,
             auction_max_eps=1.0,
             auction_min_eps=1.0,
@@ -125,16 +126,16 @@ class _ScipyFusedSGM(BaseSGMFused):
 
 class JVFusedSGM(_ScipyFusedSGM):
     def solve_lap_exact(self, cost, augment=True):
-        return _lapjv(cost, augment)
+        return _lapjv(cost, augment=augment)
     
     def solve_lap_fused(self, AP, B, augment=True, verbose=True):
-        return _lapjv(AP.dot(B), augment)
+        return _lapjv(AP.dot(B), augment=augment)
 
 
 class AuctionFusedSGM(_ScipyFusedSGM):
     def solve_lap_exact(self, cost, augment=True):
-        return _lapjv(cost, augment)
+        return _lapjv(cost, augment=augment)
     
-    def solve_lap_fused(self, AP, B, augment=True, verbose=True):
+    def solve_lap_fused(self, AP, B, augment=True, verbose=False):
         idx = dot_auction(AP, B, AP.shape[0], verbose=verbose)
         return sparse.csr_matrix((np.ones(AP.shape[0]), (np.arange(idx.shape[0]), idx)))
