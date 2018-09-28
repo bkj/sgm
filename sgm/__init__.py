@@ -4,15 +4,21 @@
     sgm/__init__.py
 """
 
-from .backends.classic import AuctionClassicSGM, JVClassicSGM
+from .backends.classic import (
+    ScipyAuctionClassicSGM, 
+    ScipyJVClassicSGM,
+    TorchAuctionClassicSGM, 
+    TorchJVClassicSGM,
+)
+
 from .backends.fused import AuctionFusedSGM, JVFusedSGM
 from .backends.sparse import AuctionSparseSGM, JVSparseSGM
 
 __backends = {
     "scipy" : {
         "classic" : {
-            "auction" : AuctionClassicSGM,
-            "jv"      : JVClassicSGM,
+            "auction" : ScipyAuctionClassicSGM,
+            "jv"      : ScipyJVClassicSGM,
         },
         "fused" : {
             "auction" : AuctionFusedSGM,
@@ -22,6 +28,12 @@ __backends = {
             "auction" : AuctionSparseSGM,
             "jv"      : JVSparseSGM,
         },
+    },
+    "torch" : {
+        "classic" : {
+            "auction" : TorchAuctionClassicSGM,
+            "jv"      : TorchJVClassicSGM,
+        }
     }
 }
 

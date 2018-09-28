@@ -7,6 +7,7 @@
 import sys
 import numpy as np
 from scipy import sparse
+import torch
 
 from lap import lapjv
 
@@ -14,10 +15,13 @@ sys.path.append('/home/bjohnson/projects/cuda_auction/python')
 from lap_auction import dense_lap_auction, csr_lap_auction, dot_auction
 
 def _gatagat_lapjv(cost):
+    if isinstance(cost, torch.Tensor):
+        cost_ = cost.cpu().numpy()
+        
     if isinstance(cost, sparse.csr_matrix):
-        cost = cost.toarray()
+        cost_ = cost.toarray()
     
-    _, idx, _ = lapjv(cost.max() - cost)
-    return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
+    _, idx, _ = lapjv(cost_.max() - cost_)
+    return idx
 
 jv = _gatagat_lapjv

@@ -11,12 +11,17 @@ from .. import lap_solvers
 import numpy as np
 from scipy import sparse
 
+# --
+# SGM loop
+
 class BaseSGMSparse(_BaseSGM):
-    def run(self, A, P, B, num_iters, tolerance, verbose=True):
+    def run(self, num_iters, tolerance, verbose=True):
+        A, B, P = self.A, self.B, self.P
         if hasattr(self, '_warmup'):
             self._warmup()
-            
+        
         self._reset_timers()
+        
         
         AP   = A.dot(P)
         grad = AP.dot(B)
@@ -61,8 +66,7 @@ class BaseSGMSparse(_BaseSGM):
             if stop:
                 break
         
-        P_out = self.solve_lap(P, None)
-        return P_out
+        return self.solve_lap(P, None, final=True)
 
 # --
 
@@ -81,16 +85,21 @@ class _ScipySGMSparse(BaseSGMSparse):
 
 
 class JVSparseSGM(_ScipySGMSparse):
-    def solve_lap(self, cost, rowcol_offsets):
+    def solve_lap(self, cost, rowcol_offsets, final=False):
         cost = cost.toarray()
         if rowcol_offsets is not None:
             cost = cost + rowcol_offsets
         
-        return lap_solvers.jv(cost)
+        idx = lap_solvers.jv(cost)
+        if final:
+            return idx
+        
+        return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
+
 
 
 class AuctionSparseSGM(_ScipySGMSparse):
-    def solve_lap(self, cost, rowcol_offsets, verbose=False):
+    def solve_lap(self, cost, rowcol_offsets, verbose=False, final=False):
         idx = lap_solvers.csr_lap_auction(cost,
             verbose=verbose,
             num_runs=1,
@@ -98,4 +107,7 @@ class AuctionSparseSGM(_ScipySGMSparse):
             auction_min_eps=1.0,
             auction_factor=0.0
         )
+        if final:
+            return idx
+        
         return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(idx.shape[0]), idx)))

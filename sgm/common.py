@@ -7,10 +7,18 @@
 import json
 from time import time
 
+import torch
+from .utils import sparse2torch
+
 # --
 # Base SGM class
 
 class _BaseSGM:
+    def __init__(self, A, B, P):
+        self.A = A
+        self.B = B
+        self.P = P
+    
     def _reset_timers(self):
         self.lap_times   = []
         self.iter_times  = []
@@ -47,3 +55,13 @@ class _BaseSGM:
         else:
             return None, True  # stop
 
+
+class _TorchMixin:
+    def __init__(self, A, B, P, cuda=True):
+        self.cuda = cuda
+        if not isinstance(A, torch.Tensor):
+            A = sparse2torch(A, cuda=cuda)
+            B = sparse2torch(B, cuda=cuda)
+            P = sparse2torch(P, cuda=cuda)
+        
+        super().__init__(A=A, B=B, P=P)

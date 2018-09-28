@@ -15,11 +15,13 @@ from scipy import sparse
 # SGM loop
 
 class BaseSGMFused(_BaseSGM):
-    def run(self, A, P, B, num_iters, tolerance, verbose=True):
+    def run(self, num_iters, tolerance, verbose=True):
+        A, B, P = self.A, self.B, self.P
         if hasattr(self, '_warmup'):
             self._warmup()
         
         self._reset_timers()
+        
         
         AP = A.dot(P)
         
@@ -59,8 +61,7 @@ class BaseSGMFused(_BaseSGM):
             if stop:
                 break
         
-        P_out = self.solve_lap_exact(P)
-        return P_out
+        return self.solve_lap_final(P)
 
 # --
 
@@ -77,21 +78,18 @@ class _ScipyFusedSGM(BaseSGMFused):
         B_sum  = Y.T.dot(B.sum(axis=0).T).sum()
         
         return 4 * AX.multiply(YBt).sum() + AX.shape[0] * Y.sum() - 2 * (AX_sum + B_sum)
+        
+    def solve_lap_final(self, cost):
+        return lap_solvers.jv(cost)
 
 
 class JVFusedSGM(_ScipyFusedSGM):
-    def solve_lap_exact(self, cost):
-        return lap_solvers.jv(cost)
-    
     def solve_lap_fused(self, AP, B, verbose=True):
         rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + AP.shape[0]
         return lap_solvers.jv(AP.dot(B).toarray() + rowcol_offsets)
 
 
 class AuctionFusedSGM(_ScipyFusedSGM):
-    def solve_lap_exact(self, cost):
-        return lap_solvers.jv(cost)
-    
     def solve_lap_fused(self, AP, B, verbose=False):
         idx = lap_solvers.dot_auction(AP, B, AP.shape[0], verbose=verbose)
         return sparse.csr_matrix((np.ones(AP.shape[0]), (np.arange(idx.shape[0]), idx)))
