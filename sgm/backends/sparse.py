@@ -8,6 +8,9 @@ from time import time
 from ..common import _BaseSGM
 from .. import lap_solvers
 
+import numpy as np
+from scipy import sparse
+
 class BaseSGMSparse(_BaseSGM):
     def run(self, A, P, B, num_iters, tolerance, verbose=True):
         if hasattr(self, '_warmup'):
@@ -23,7 +26,7 @@ class BaseSGMSparse(_BaseSGM):
             
             lap_t = time()
             rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
-            T = self.solve_lap(grad.toarray() + rowcol_offsets)
+            T = self.solve_lap(grad, rowcol_offsets)
             self.lap_times.append(time() - lap_t)
             
             AT    = A.dot(T)
@@ -58,7 +61,7 @@ class BaseSGMSparse(_BaseSGM):
             if stop:
                 break
         
-        P_out = self.solve_lap(P)
+        P_out = self.solve_lap(P, None)
         return P_out
 
 # --
@@ -66,7 +69,7 @@ class BaseSGMSparse(_BaseSGM):
 class _ScipySGMSparse(BaseSGMSparse):
     def _warmup(self):
         cost = sparse.random(100, 100, density=0.5).tocsr()
-        _ = self.solve_lap(cost)
+        _ = self.solve_lap(cost, None)
     
     def compute_trace(self, AX, B, Y):
         YBt = Y.dot(B.T)
@@ -78,12 +81,16 @@ class _ScipySGMSparse(BaseSGMSparse):
 
 
 class JVSparseSGM(_ScipySGMSparse):
-    def solve_lap(self, cost):
+    def solve_lap(self, cost, rowcol_offsets):
+        cost = cost.toarray()
+        if rowcol_offsets is not None:
+            cost = cost + rowcol_offsets
+        
         return lap_solvers.jv(cost)
 
 
 class AuctionSparseSGM(_ScipySGMSparse):
-    def solve_lap(self, cost, verbose=False):
+    def solve_lap(self, cost, rowcol_offsets, verbose=False):
         idx = lap_solvers.csr_lap_auction(cost,
             verbose=verbose,
             num_runs=1,

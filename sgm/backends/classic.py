@@ -8,6 +8,9 @@ from time import time
 from ..common import _BaseSGM
 from .. import lap_solvers
 
+import numpy as np
+from scipy import sparse
+
 # --
 # SGM loop
 
@@ -76,13 +79,13 @@ class JVClassicSGM(_ScipySGMClassic):
 
 class AuctionClassicSGM(_ScipySGMClassic):
     def solve_lap(self, cost, verbose=False):
-        print(cost)
-        idx = lap_solvers.dense_lap_auction(cost,
-            verbose=verbose,
-            num_runs=1,
-            auction_max_eps=1.0,
-            auction_min_eps=1.0,
-            auction_factor=0.0
-        )
-        return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(idx.shape[0]), idx)))
+        raise Exception('currently broken')
+        # idx = lap_solvers.dense_lap_auction(cost,
+        #     verbose=verbose,
+        #     num_runs=1,
+        #     auction_max_eps=1.0,
+        #     auction_min_eps=1.0,
+        #     auction_factor=0.0
+        # )
+        # return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(idx.shape[0]), idx)))
 

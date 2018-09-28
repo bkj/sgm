@@ -8,6 +8,12 @@ from time import time
 from ..common import _BaseSGM
 from .. import lap_solvers
 
+import numpy as np
+from scipy import sparse
+
+# --
+# SGM loop
+
 class BaseSGMFused(_BaseSGM):
     def run(self, A, P, B, num_iters, tolerance, verbose=True):
         if hasattr(self, '_warmup'):
@@ -78,7 +84,7 @@ class JVFusedSGM(_ScipyFusedSGM):
         return lap_solvers.jv(cost)
     
     def solve_lap_fused(self, AP, B, verbose=True):
-        rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
+        rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + AP.shape[0]
         return lap_solvers.jv(AP.dot(B).toarray() + rowcol_offsets)
 
 
