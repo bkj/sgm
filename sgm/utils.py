@@ -13,7 +13,8 @@ def sparse2numpy(x):
     return np.asarray(x.todense())
 
 def sparse2torch(X, cuda=True):
-    X = torch.Tensor(sparse2numpy(X))
+    X = sparse2numpy(X)
+    X = torch.FloatTensor(X)
     if cuda:
         X = X.cuda()
     
