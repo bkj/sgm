@@ -19,26 +19,11 @@ from lap_auction import dense_lap_auction, csr_lap_auction, dot_auction
 # --
 # Helpers
 
-def _augment_cost(cost, mode='random'):
-    if mode == 'sequential':
-        cols = np.arange(cost.shape[0]).reshape(-1, cost.shape[0])
-        rows = cost.shape[0] * np.arange(cost.shape[0]).reshape(cost.shape[0], -1)
-    elif mode == 'random':
-        cols = np.random.choice(100000, cost.shape[0]).reshape(-1, cost.shape[0])
-        rows = np.random.choice(100000, cost.shape[0]).reshape(cost.shape[0], -1)
-    else:
-        raise Exception
-    
-    return cost + cols + rows
-
-def _lapjv(cost, augment):
+def _lapjv(cost):
     if isinstance(cost, sparse.csr_matrix):
         cost = cost.toarray()
     
-    cost_ = _augment_cost(cost) if augment else cost
-    cost_ = cost_.max() - cost_
-    
-    _, idx, _ = lapjv(cost_)
+    _, idx, _ = lapjv(cost.max() - cost)
     return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
 
 # --
@@ -57,7 +42,7 @@ class _ScipySGMClassic(BaseSGMClassic):
 
 class JVClassicSGM(_ScipySGMClassic):
     def solve_lap(self, cost):
-        return _lapjv(cost, augment=False)
+        return _lapjv(cost)
 
 
 class AuctionClassicSGM(_ScipySGMClassic):
@@ -90,12 +75,12 @@ class _ScipySGMSparse(BaseSGMSparse):
 
 
 class JVSparseSGM(_ScipySGMSparse):
-    def solve_lap(self, cost, augment=True):
-        return _lapjv(cost, augment)
+    def solve_lap(self, cost):
+        return _lapjv(cost)
 
 
 class AuctionSparseSGM(_ScipySGMSparse):
-    def solve_lap(self, cost, augment=True, verbose=False):
+    def solve_lap(self, cost, verbose=False):
         idx = csr_lap_auction(cost,
             verbose=verbose,
             num_runs=1,
@@ -125,17 +110,18 @@ class _ScipyFusedSGM(BaseSGMFused):
 
 
 class JVFusedSGM(_ScipyFusedSGM):
-    def solve_lap_exact(self, cost, augment=True):
-        return _lapjv(cost, augment=augment)
+    def solve_lap_exact(self, cost):
+        return _lapjv(cost)
     
-    def solve_lap_fused(self, AP, B, augment=True, verbose=True):
-        return _lapjv(AP.dot(B), augment=augment)
+    def solve_lap_fused(self, AP, B, verbose=True):
+        rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
+        return _lapjv(AP.dot(B).toarray() + rowcol_offsets)
 
 
 class AuctionFusedSGM(_ScipyFusedSGM):
-    def solve_lap_exact(self, cost, augment=True):
-        return _lapjv(cost, augment=augment)
+    def solve_lap_exact(self, cost):
+        return _lapjv(cost)
     
-    def solve_lap_fused(self, AP, B, augment=True, verbose=False):
+    def solve_lap_fused(self, AP, B, verbose=False):
         idx = dot_auction(AP, B, AP.shape[0], verbose=verbose)
         return sparse.csr_matrix((np.ones(AP.shape[0]), (np.arange(idx.shape[0]), idx)))

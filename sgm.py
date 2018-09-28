@@ -119,7 +119,8 @@ class BaseSGMSparse(_BaseSGM):
             iter_t = time()
             
             lap_t = time()
-            T = self.solve_lap(grad)
+            rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
+            T = self.solve_lap(grad.toarray() + rowcol_offsets)
             self.lap_times.append(time() - lap_t)
             
             AT    = A.dot(T)
