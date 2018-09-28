@@ -24,6 +24,7 @@ if __name__ == "__main__":
     X, rw = load_data()
     
     def _experiment_wrapper(params):
+        print(json.dumps(params), file=sys.stderr)
         try:
             info, lap_times, iter_times = \
                 run_experiment(
@@ -41,6 +42,9 @@ if __name__ == "__main__":
                 }
             })
             print(json.dumps(info))
+            sys.stdout.flush()
+        except KeyboardInterrupt:
+            raise
         except:
             print('error at %s' % json.dumps(params), file=sys.stderr)
             return

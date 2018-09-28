@@ -20,3 +20,5 @@ python kasios.py --num-nodes $NUM_NODES --num-seeds $NUM_SEEDS --backend torch.c
 # --
 # Run experiment across grid of parameter settings and problems
 
+mkdir -p results/grid
+python kasios-grid.py --seed 123 > results/grid/grid-00000.jl
