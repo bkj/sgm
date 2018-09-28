@@ -17,9 +17,12 @@ from lap_auction import dense_lap_auction, csr_lap_auction, dot_auction
 def _gatagat_lapjv(cost):
     if isinstance(cost, torch.Tensor):
         cost_ = cost.cpu().numpy()
-        
-    if isinstance(cost, sparse.csr_matrix):
+    elif isinstance(cost, sparse.csr_matrix):
         cost_ = cost.toarray()
+    elif isinstance(cost, np.ndarray):
+        cost_ = cost
+    else:
+        raise Exception('_gatagat_lapjv: cost has unknown type!')
     
     _, idx, _ = lapjv(cost_.max() - cost_)
     return idx

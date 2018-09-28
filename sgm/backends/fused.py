@@ -86,7 +86,8 @@ class _ScipyFusedSGM(BaseSGMFused):
 class JVFusedSGM(_ScipyFusedSGM):
     def solve_lap_fused(self, AP, B, verbose=True):
         rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + AP.shape[0]
-        return lap_solvers.jv(AP.dot(B).toarray() + rowcol_offsets)
+        idx = lap_solvers.jv(AP.dot(B).toarray() + rowcol_offsets)
+        return sparse.csr_matrix((np.ones(AP.shape[0]), (np.arange(idx.shape[0]), idx)))
 
 
 class AuctionFusedSGM(_ScipyFusedSGM):

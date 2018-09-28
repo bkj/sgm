@@ -78,7 +78,7 @@ class _ScipySGMClassic(BaseSGMClassic):
 
 
 class ScipyJVClassicSGM(_ScipySGMClassic):
-    def solve_lap(self, cost, final=True):
+    def solve_lap(self, cost, final=False):
         idx = lap_solvers.jv(cost)
         if final:
             return idx
