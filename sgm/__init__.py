@@ -1,3 +1,39 @@
-from .backends.classic import JVClassicSGM, AuctionClassicSGM
-from .backends.sparse import JVSparseSGM, AuctionSparseSGM
-from .backends.fused import JVFusedSGM, AuctionFusedSGM
+#!/usr/bin/env python
+
+"""
+    sgm/__init__.py
+"""
+
+from .backends.classic import AuctionClassicSGM, JVClassicSGM
+from .backends.fused import AuctionFusedSGM, JVFusedSGM
+from .backends.sparse import AuctionSparseSGM, JVSparseSGM
+
+__backends = {
+    "scipy" : {
+        "classic" : {
+            "auction" : AuctionClassicSGM,
+            "jv"      : JVClassicSGM,
+        },
+        "fused" : {
+            "auction" : AuctionFusedSGM,
+            "jv"      : JVFusedSGM,
+        },
+        "sparse" : {
+            "auction" : AuctionSparseSGM,
+            "jv"      : JVSparseSGM,
+        },
+    }
+}
+
+def factory(mat, mode, lap):
+    
+    assert mat in __backends
+    __backend = __backends[mat]
+    
+    assert mode in __backend
+    __backend = __backend[mode]
+    
+    assert lap in __backend
+    __backend = __backend[lap]
+    
+    return __backend
