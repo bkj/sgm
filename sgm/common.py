@@ -15,22 +15,24 @@ from .utils import sparse2torch
 # Base SGM class
 
 class _BaseSGM:
-    def __init__(self, A, B, P):
+    def __init__(self, A, B, P, verbose=True):
         self.A = A
         self.B = B
         self.P = P
+        
+        self.verbose = verbose
     
     def _reset_timers(self):
         self.lap_times   = []
         self.iter_times  = []
     
     def _log_times(self):
-        i = len(self.lap_times)
-        print(json.dumps({
-            "iter"      : i,
-            "lap_time"  : float(self.lap_times[-1]),
-            "iter_time" : float(self.iter_times[-1]),
-        }))
+        if self.verbose:
+            print(json.dumps({
+                "iter"      : len(self.lap_times),
+                "lap_time"  : float(self.lap_times[-1]),
+                "iter_time" : float(self.iter_times[-1]),
+            }))
     
     def check_convergence(self, c, d, e, tolerance):
         cde = c + e - d 
@@ -65,11 +67,11 @@ class _JVMixin:
 
 
 class _TorchMixin:
-    def __init__(self, A, B, P, cuda=True):
+    def __init__(self, A, B, P, cuda=True, **kwargs):
         self.cuda = cuda
         if not isinstance(A, torch.Tensor):
             A = sparse2torch(A, cuda=cuda)
             B = sparse2torch(B, cuda=cuda)
             P = sparse2torch(P, cuda=cuda)
         
-        super().__init__(A=A, B=B, P=P)
+        super().__init__(A=A, B=B, P=P, **kwargs)
