@@ -5,7 +5,7 @@
 """
 
 from time import time
-from ..common import _BaseSGM
+from ..common import _BaseSGM, _JVMixin
 from .. import lap_solvers
 
 import numpy as np
@@ -84,13 +84,13 @@ class _ScipySGMSparse(BaseSGMSparse):
         return 4 * AX.multiply(YBt).sum() + AX.shape[0] * Y.sum() - 2 * (AX_sum + B_sum)
 
 
-class JVSparseSGM(_ScipySGMSparse):
+class JVSparseSGM(_JVMixin, _ScipySGMSparse):
     def solve_lap(self, cost, rowcol_offsets, final=False):
         cost = cost.toarray()
         if rowcol_offsets is not None:
             cost = cost + rowcol_offsets
         
-        idx = lap_solvers.jv(cost)
+        idx = lap_solvers.jv(cost, jv_backend=self.jv_backend)
         if final:
             return idx
         

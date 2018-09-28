@@ -9,7 +9,10 @@ import numpy as np
 from scipy import sparse
 import torch
 
-from lap import lapjv
+from lap import lapjv as __lapjv_gatagat
+from lapjv import lapjv as __lapjv_srcd
+
+
 
 try:
     sys.path.append('/home/bjohnson/projects/cuda_auction/python')
@@ -17,7 +20,7 @@ try:
 except:
     print('WARNING: sgm.lap_solvers cannot load `lap_auction`', file=sys.stderr)
 
-def _gatagat_lapjv(cost):
+def jv(cost, jv_backend):
     if isinstance(cost, torch.Tensor) or isinstance(cost, torch.cuda.FloatTensor):
         cost_ = cost.cpu().numpy()
     elif isinstance(cost, sparse.csr_matrix):
@@ -28,7 +31,11 @@ def _gatagat_lapjv(cost):
         print(type(cost))
         raise Exception('_gatagat_lapjv: cost has unknown type!')
     
-    _, idx, _ = lapjv(cost_.max() - cost_)
+    if jv_backend == 'gatagat':
+        _, idx, _ = __lapjv_gatagat(cost_.max() - cost_)
+    elif jv_backend == 'srcd':
+        idx, _, _ = __lapjv_srcd(cost_.max() - cost_)
+    else:
+        raise Exception('ERROR: sgm.lap_solvers: unknown jv_backend=%s' % jv_backend)
+    
     return idx
-
-jv = _gatagat_lapjv

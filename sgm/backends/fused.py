@@ -5,7 +5,7 @@
 """
 
 from time import time
-from ..common import _BaseSGM
+from ..common import _BaseSGM, _JVMixin
 from .. import lap_solvers
 
 import numpy as np
@@ -65,7 +65,7 @@ class BaseSGMFused(_BaseSGM):
 
 # --
 
-class _ScipyFusedSGM(BaseSGMFused):
+class _ScipyFusedSGM(_JVMixin, BaseSGMFused):
     def _warmup(self):
         x = sparse.random(100, 100, density=0.5).tocsr()
         y = sparse.random(100, 100, density=0.5).tocsr()
@@ -80,13 +80,16 @@ class _ScipyFusedSGM(BaseSGMFused):
         return 4 * AX.multiply(YBt).sum() + AX.shape[0] * Y.sum() - 2 * (AX_sum + B_sum)
         
     def solve_lap_final(self, cost):
-        return lap_solvers.jv(cost)
+        return lap_solvers.jv(cost, jv_backend=self.jv_backend)
 
 
 class JVFusedSGM(_ScipyFusedSGM):
     def solve_lap_fused(self, AP, B, verbose=True):
         rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + AP.shape[0]
-        idx = lap_solvers.jv(AP.dot(B).toarray() + rowcol_offsets)
+        idx = lap_solvers.jv(
+            AP.dot(B).toarray() + rowcol_offsets, 
+            jv_backend=self.jv_backend
+        )
         return sparse.csr_matrix((np.ones(AP.shape[0]), (np.arange(idx.shape[0]), idx)))
 
 

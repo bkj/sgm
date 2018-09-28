@@ -5,7 +5,7 @@
 """
 
 from time import time
-from ..common import _BaseSGM, _TorchMixin
+from ..common import _BaseSGM, _TorchMixin, _JVMixin
 from .. import lap_solvers
 
 import numpy as np
@@ -77,9 +77,9 @@ class _ScipySGMClassic(BaseSGMClassic):
         return y.multiply(x).sum()
 
 
-class ScipyJVClassicSGM(_ScipySGMClassic):
+class ScipyJVClassicSGM(_JVMixin, _ScipySGMClassic):
     def solve_lap(self, cost, final=False):
-        idx = lap_solvers.jv(cost)
+        idx = lap_solvers.jv(cost, jv_backend=self.jv_backend)
         if final:
             return idx
         
@@ -120,9 +120,9 @@ class _TorchSGMClassic(_TorchMixin, BaseSGMClassic):
         return (x * y).sum()
 
 
-class TorchJVClassicSGM(_TorchSGMClassic):
+class TorchJVClassicSGM(_JVMixin, _TorchSGMClassic):
     def solve_lap(self, cost, final=False):
-        idx = lap_solvers.jv(cost)
+        idx = lap_solvers.jv(cost, jv_backend=self.jv_backend)
         if final:
             return idx
         

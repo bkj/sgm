@@ -4,6 +4,7 @@
     base_sgm.py
 """
 
+import sys
 import json
 from time import time
 
@@ -54,6 +55,13 @@ class _BaseSGM:
             return None, False # P <- T
         else:
             return None, True  # stop
+
+
+class _JVMixin:
+    def __init__(self, *args, jv_backend='gatagat', **kwargs):
+        print('jv_backend=%s' % jv_backend, file=sys.stderr)
+        self.jv_backend = jv_backend
+        super().__init__(*args, **kwargs)
 
 
 class _TorchMixin:
