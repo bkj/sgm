@@ -22,16 +22,19 @@ class BaseSGMSparse(_BaseSGM):
         
         self._reset_timers()
         
+        t = time()
         
         AP   = A.dot(P)
         grad = AP.dot(B)
         
-        for i in range(num_iters):
+        for i in range(3):
+            print("********** iter=%d **********" % i)
             iter_t = time()
             
             lap_t = time()
             rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
             T = self.solve_lap(grad, rowcol_offsets)
+            
             self.lap_times.append(time() - lap_t)
             
             AT    = A.dot(T)
@@ -41,6 +44,10 @@ class BaseSGMSparse(_BaseSGM):
             ps_grad_T  = self.compute_trace(AP, B, T)
             ps_gradt_P = self.compute_trace(AT, B, P)
             ps_gradt_T = self.compute_trace(AT, B, T)
+            print('ps_grad_P  ', ps_grad_P)
+            print('ps_grad_T  ', ps_grad_T)
+            print('ps_gradt_P ', ps_gradt_P)
+            print('ps_gradt_T ', ps_gradt_T)
             
             alpha, stop = self.check_convergence(
                 c=ps_grad_P,
@@ -51,9 +58,21 @@ class BaseSGMSparse(_BaseSGM):
             
             if not stop:
                 if alpha is not None:
+                    print('convex combination *******************************')
+                    # raise Exception
                     P    = (alpha * P)    + (1 - alpha) * T
                     grad = (alpha * grad) + (1 - alpha) * gradt
                     AP   = (alpha * AP)   + (1 - alpha) * AT
+                    
+                    P    = P.tocsr()
+                    grad = grad.tocsr()
+                    AP   = AP.tocsr()
+                    
+                    P.sort_indices()
+                    grad.sort_indices()
+                    AP.sort_indices()
+                    
+                    print('grad', grad)
                 else:
                     P    = T
                     grad = gradt
@@ -72,8 +91,9 @@ class BaseSGMSparse(_BaseSGM):
 
 class _ScipySGMSparse(BaseSGMSparse):
     def _warmup(self):
-        cost = sparse.random(100, 100, density=0.5).tocsr()
-        _ = self.solve_lap(cost, None)
+        # cost = sparse.random(100, 100, density=0.5).tocsr()
+        # _ = self.solve_lap(cost, None)
+        pass
     
     def compute_trace(self, AX, B, Y):
         YBt = Y.dot(B.T)
@@ -81,11 +101,18 @@ class _ScipySGMSparse(BaseSGMSparse):
         AX_sum = Y.dot(AX.sum(axis=1)).sum()
         B_sum  = Y.T.dot(B.sum(axis=0).T).sum()
         
+        # print('trace', AX.multiply(YBt).sum())
+        # print('AX_sum', AX_sum)
+        # print('B_sum', B_sum)
+        # print('Y.sum()', Y.sum())
+        # print('AX.shape', AX.shape)
+        
         return 4 * AX.multiply(YBt).sum() + AX.shape[0] * Y.sum() - 2 * (AX_sum + B_sum)
 
 
 class JVSparseSGM(_JVMixin, _ScipySGMSparse):
     def solve_lap(self, cost, rowcol_offsets, final=False):
+        cost_orig = cost.copy()
         cost = cost.toarray()
         if rowcol_offsets is not None:
             cost = cost + rowcol_offsets
@@ -94,20 +121,29 @@ class JVSparseSGM(_JVMixin, _ScipySGMSparse):
         if final:
             return idx
         
+        score = cost_orig[(np.arange(cost.shape[0]), idx)].sum()
+        # print("score=", score)
+        
         return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(cost.shape[0]), idx)))
 
 
 
 class AuctionSparseSGM(_ScipySGMSparse):
     def solve_lap(self, cost, rowcol_offsets, verbose=False, final=False):
-        idx = lap_solvers.csr_lap_auction(cost,
-            verbose=verbose,
+        idx = lap_solvers.csr_lap_auction(
+            cost,
+            verbose=10,
             num_runs=1,
-            auction_max_eps=1.0,
-            auction_min_eps=1.0,
+            auction_max_eps=0.1,
+            auction_min_eps=0.1,
             auction_factor=0.0
         )
         if final:
             return idx
         
+        score = cost[(np.arange(cost.shape[0]), idx)].sum()
+        print("score=", score)
+        
         return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(idx.shape[0]), idx)))
+        # print('dummy')
+        # return sparse.eye(cost.shape[0])

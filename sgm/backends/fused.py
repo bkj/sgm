@@ -60,6 +60,8 @@ class BaseSGMFused(_BaseSGM):
             
             if stop:
                 break
+            
+            raise Exception
         
         return self.solve_lap_final(P)
 

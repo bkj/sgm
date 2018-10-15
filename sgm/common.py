@@ -51,6 +51,10 @@ class _BaseSGM:
         
         f1 = c - e
         
+        print("alpha", alpha)
+        print("falpha", falpha)
+        print("f1", f1)
+        
         if (alpha > 0) and (alpha < tolerance) and (falpha > max(0, f1)):
             return alpha, False # P <- (alpha * P) + (1 - alpha) * T
         elif f1 < 0:
