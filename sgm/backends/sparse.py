@@ -14,6 +14,8 @@ from scipy import sparse
 # --
 # SGM loop
 
+debug = False
+
 class BaseSGMSparse(_BaseSGM):
     def run(self, num_iters, tolerance, verbose=True):
         A, B, P = self.A, self.B, self.P
@@ -28,13 +30,12 @@ class BaseSGMSparse(_BaseSGM):
         grad = AP.dot(B)
         
         for i in range(3):
-            print("********** iter=%d **********" % i)
+            # print("********** iter=%d **********" % i)
             iter_t = time()
             
             lap_t = time()
             rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
             T = self.solve_lap(grad, rowcol_offsets)
-            
             self.lap_times.append(time() - lap_t)
             
             AT    = A.dot(T)
@@ -58,21 +59,18 @@ class BaseSGMSparse(_BaseSGM):
             
             if not stop:
                 if alpha is not None:
-                    print('convex combination *******************************')
-                    # raise Exception
                     P    = (alpha * P)    + (1 - alpha) * T
                     grad = (alpha * grad) + (1 - alpha) * gradt
                     AP   = (alpha * AP)   + (1 - alpha) * AT
                     
-                    P    = P.tocsr()
-                    grad = grad.tocsr()
-                    AP   = AP.tocsr()
-                    
-                    P.sort_indices()
-                    grad.sort_indices()
-                    AP.sort_indices()
-                    
-                    print('grad', grad)
+                    if debug:
+                        P    = P.tocsr()
+                        grad = grad.tocsr()
+                        AP   = AP.tocsr()
+                        
+                        P.sort_indices()
+                        grad.sort_indices()
+                        AP.sort_indices()
                 else:
                     P    = T
                     grad = gradt
