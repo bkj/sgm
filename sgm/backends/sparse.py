@@ -29,13 +29,14 @@ class BaseSGMSparse(_BaseSGM):
         AP   = A.dot(P)
         grad = AP.dot(B)
         
-        for i in range(3):
+        for i in range(num_iters):
             # print("********** iter=%d **********" % i)
             iter_t = time()
             
             lap_t = time()
             rowcol_offsets = - 2 * AP.sum(axis=1) - 2 * B.sum(axis=0) + A.shape[0]
             T = self.solve_lap(grad, rowcol_offsets)
+            
             self.lap_times.append(time() - lap_t)
             
             AT    = A.dot(T)
@@ -45,10 +46,13 @@ class BaseSGMSparse(_BaseSGM):
             ps_grad_T  = self.compute_trace(AP, B, T)
             ps_gradt_P = self.compute_trace(AT, B, P)
             ps_gradt_T = self.compute_trace(AT, B, T)
-            print('ps_grad_P  ', ps_grad_P)
-            print('ps_grad_T  ', ps_grad_T)
-            print('ps_gradt_P ', ps_gradt_P)
-            print('ps_gradt_T ', ps_gradt_T)
+            print('ps_grad_P  ', int(ps_grad_P))
+            print('ps_grad_T  ', int(ps_grad_T))
+            print('ps_gradt_P ', int(ps_gradt_P))
+            print('ps_gradt_T ', int(ps_gradt_T))
+            
+            B_perm = T.dot(B).dot(T.T)
+            print('num_diff   ', int(float((A.toarray() != B_perm.toarray()).sum())))
             
             alpha, stop = self.check_convergence(
                 c=ps_grad_P,
@@ -100,11 +104,12 @@ class _ScipySGMSparse(BaseSGMSparse):
         B_sum  = Y.T.dot(B.sum(axis=0).T).sum()
         
         # print('trace', AX.multiply(YBt).sum())
+        # print('Y.sum()', Y.sum())
         # print('AX_sum', AX_sum)
         # print('B_sum', B_sum)
-        # print('Y.sum()', Y.sum())
-        # print('AX.shape', AX.shape)
         
+        # print('AX.shape', AX.shape)
+                
         return 4 * AX.multiply(YBt).sum() + AX.shape[0] * Y.sum() - 2 * (AX_sum + B_sum)
 
 
@@ -128,12 +133,13 @@ class JVSparseSGM(_JVMixin, _ScipySGMSparse):
 
 class AuctionSparseSGM(_ScipySGMSparse):
     def solve_lap(self, cost, rowcol_offsets, verbose=False, final=False):
+        print('solve_lap')
         idx = lap_solvers.csr_lap_auction(
             cost,
             verbose=10,
             num_runs=1,
-            auction_max_eps=0.1,
-            auction_min_eps=0.1,
+            auction_max_eps=1.0,
+            auction_min_eps=1.0,
             auction_factor=0.0
         )
         if final:

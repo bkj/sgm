@@ -38,10 +38,6 @@ class BaseSGMClassic(_BaseSGM):
             ps_grad_T  = self.compute_trace(grad, T)
             ps_gradt_P = self.compute_trace(gradt, P)
             ps_gradt_T = self.compute_trace(gradt, T)
-            print('ps_grad_P  ', ps_grad_P)
-            print('ps_grad_T  ', ps_grad_T)
-            print('ps_gradt_P ', ps_gradt_P)
-            print('ps_gradt_T ', ps_gradt_T)
             
             alpha, stop = self.check_convergence(
                 c=ps_grad_P,
