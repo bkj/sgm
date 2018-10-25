@@ -21,13 +21,13 @@ from sgm import factory
 # --
 # IO
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--backend', type=str, default='scipy.sparse.jv')
+    parser.add_argument('--backend', type=str, default='scipy.sparse.auction')
     parser.add_argument('--num-seeds', type=int, default=100)
     parser.add_argument('--num-nodes', type=int, default=1024)
     return parser.parse_args()
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     SGMClass = factory(*args.backend.split('.'))
 
-    sgm     = SGMClass(A=A, B=B, P=P, verbose=True, cuda=False)
+    sgm     = SGMClass(A=A, B=B, P=P, verbose=True)
     t       = time()
     P_out   = sgm.run(num_iters=20, tolerance=1)
     elapsed = time() - t
