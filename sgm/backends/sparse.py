@@ -46,13 +46,13 @@ class BaseSGMSparse(_BaseSGM):
             ps_grad_T  = self.compute_trace(AP, B, T)
             ps_gradt_P = self.compute_trace(AT, B, P)
             ps_gradt_T = self.compute_trace(AT, B, T)
-            print('ps_grad_P  ', int(ps_grad_P))
-            print('ps_grad_T  ', int(ps_grad_T))
-            print('ps_gradt_P ', int(ps_gradt_P))
-            print('ps_gradt_T ', int(ps_gradt_T))
+            # print('ps_grad_P  ', int(ps_grad_P))
+            # print('ps_grad_T  ', int(ps_grad_T))
+            # print('ps_gradt_P ', int(ps_gradt_P))
+            # print('ps_gradt_T ', int(ps_gradt_T))
             
             B_perm = T.dot(B).dot(T.T)
-            print('num_diff   ', int(float((A.toarray() != B_perm.toarray()).sum())))
+            # print('num_diff   ', int(float((A.toarray() != B_perm.toarray()).sum())))
             
             alpha, stop = self.check_convergence(
                 c=ps_grad_P,
@@ -133,7 +133,7 @@ class JVSparseSGM(_JVMixin, _ScipySGMSparse):
 
 class AuctionSparseSGM(_ScipySGMSparse):
     def solve_lap(self, cost, rowcol_offsets, verbose=False, final=False):
-        print('solve_lap')
+        # print('solve_lap')
         idx = lap_solvers.csr_lap_auction(
             cost,
             verbose=10,
@@ -146,7 +146,7 @@ class AuctionSparseSGM(_ScipySGMSparse):
             return idx
         
         score = cost[(np.arange(cost.shape[0]), idx)].sum()
-        print("score=", score)
+        # print("score=", score)
         
         return sparse.csr_matrix((np.ones(cost.shape[0]), (np.arange(idx.shape[0]), idx)))
         # print('dummy')

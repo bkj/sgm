@@ -52,8 +52,10 @@ def make_problem(X, rw, num_nodes, num_seeds, shuffle_A=False, seed=None):
 X, rw = load_data()
 
 num_seeds = 100
-all_num_nodes = 2 ** np.arange(10, 15)
+# all_num_nodes = 2 ** np.arange(10, 15)
+all_num_nodes = [2 ** 15, 2 ** 16]
 for num_nodes in all_num_nodes:
+    print(num_nodes)
     A, B, _ = make_problem(X, rw, num_nodes=num_nodes, num_seeds=num_seeds, shuffle_A=True, seed=123)
     mmwrite('./data/calls_A_%d_%d.mtx' % (num_nodes, num_seeds), A, symmetry='symmetric', field='pattern')
     mmwrite('./data/calls_B_%d_%d.mtx' % (num_nodes, num_seeds), B, symmetry='symmetric', field='pattern')
