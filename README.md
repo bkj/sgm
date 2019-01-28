@@ -19,6 +19,6 @@ pip install -e .
 #### Example Usage
 
 ```
-cd examples/kasios
-python kasios.py --num-nodes 1000 --num-seeds 32 --backend scipy.classic.jv
+cd examples/synthetic
+python main.py
 ```
