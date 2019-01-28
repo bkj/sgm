@@ -16,6 +16,8 @@ cat requirements.txt | xargs -I {} pip install {}
 pip install -e .
 ```
 
+Tested on Ubuntu 16.04.  Installation on OSX may fail.
+
 #### Example Usage
 
 Simple example:
