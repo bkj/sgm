@@ -4,13 +4,19 @@
     backends/classic.py
 """
 
+import sys
 from time import time
 from ..common import _BaseSGM, _TorchMixin, _JVMixin
 from .. import lap_solvers
 
 import numpy as np
 from scipy import sparse
-import torch
+
+try:
+    import torch
+except:
+    print('!! Could not import torch', file=sys.stderr)
+
 
 # --
 # Core SGM loop

@@ -8,7 +8,11 @@ import sys
 import json
 from time import time
 
-import torch
+try:
+    import torch
+except:
+    print('!! Could not import torch', file=sys.stderr)
+
 from .utils import sparse2torch
 
 # --

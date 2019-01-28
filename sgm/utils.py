@@ -4,10 +4,16 @@
     sgm/utils.py
 """
 
+import sys
 import numpy as np
 
-import torch
 from scipy import sparse
+
+try:
+    import torch
+except:
+    print('!! Could not import torch', file=sys.stderr)
+
 
 def sparse2numpy(x):
     return np.asarray(x.todense())

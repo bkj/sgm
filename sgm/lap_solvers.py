@@ -7,12 +7,17 @@
 import sys
 import numpy as np
 from scipy import sparse
-import torch
+
+try:
+    import torch
+    have_torch = True
+except:
+    print('!! Could not import torch', file=sys.stderr)
+    have_torch = False
+
 
 from lap import lapjv as __lapjv_gatagat
 from lapjv import lapjv as __lapjv_srcd
-
-
 
 try:
     sys.path.append('/home/bjohnson/projects/cuda_auction/python')
@@ -21,7 +26,7 @@ except:
     print('WARNING: sgm.lap_solvers cannot load `lap_auction`', file=sys.stderr)
 
 def jv(cost, jv_backend):
-    if isinstance(cost, torch.Tensor) or isinstance(cost, torch.cuda.FloatTensor):
+    if have_torch and (isinstance(cost, torch.Tensor) or isinstance(cost, torch.cuda.FloatTensor)):
         cost_ = cost.cpu().numpy()
     elif isinstance(cost, sparse.csr_matrix):
         cost_ = cost.toarray()
