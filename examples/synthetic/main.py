@@ -62,3 +62,6 @@ B_perm = P_out @ B @ P_out.T
 
 num_disagreements = (A[:num_nodes,:num_nodes] != B_perm[:num_nodes, :num_nodes]).sum()
 print('num_disagreements=%d' % num_disagreements, file=sys.stderr)
+
+# If worked perfectly, `P_out @ P_act` should be identity matrix
+# ((P_out @ P_act) != sparse.eye(num_nodes)).sum()

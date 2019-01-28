@@ -18,7 +18,14 @@ pip install -e .
 
 #### Example Usage
 
+Simple example:
 ```
 cd examples/synthetic
 python main.py
+```
+
+More complex example:
+```
+cd examples/kasios/
+python kasios.py --num-nodes 1000 --num-seeds 32 --backend scipy.classic.jv
 ```
