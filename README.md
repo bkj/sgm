@@ -16,6 +16,9 @@ cat requirements.txt | xargs -I {} pip install {}
 pip install -e .
 ```
 
-#### Usage
+#### Example Usage
 
-See `examples/kasios/run.sh` for an example.
+```
+cd examples/kasios
+python kasios.py --num-nodes 1000 --num-seeds 32 --backend scipy.classic.jv
+```
