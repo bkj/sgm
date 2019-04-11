@@ -14,8 +14,10 @@ setup(
         'pandas',
         'matplotlib',
         'seaborn',
-        'git+https://github.com/gatagat/lap.git',
-        'git+https://github.com/src-d/lapjv',
+        'lap',
+        'lapjv'
+        #'git+https://github.com/gatagat/lap.git',
+        #'git+https://github.com/src-d/lapjv',
     ],
     version="1.0"
 )
