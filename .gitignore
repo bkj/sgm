@@ -8,3 +8,5 @@ data.tar.gz
 
 examples/*/results
 examples/*/data
+
+venv

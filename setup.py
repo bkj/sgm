@@ -12,12 +12,11 @@ setup(
         'tqdm',
         'numpy',
         'pandas',
-        'matplotlib',
-        'seaborn',
-        'lap',
-        'lapjv'
-        #'git+https://github.com/gatagat/lap.git',
-        #'git+https://github.com/src-d/lapjv',
+        'lap @ git+https://github.com/nowfred/lap.git@v0.5.0#egg=lap',
+        'lapjv @ git+https://github.com/nowfred/lapjv.git@v1.4.1#egg=lapjv'
+    ],
+    dependency_links=[
+
     ],
     version="1.0"
 )
